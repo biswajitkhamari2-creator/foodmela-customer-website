@@ -73,8 +73,8 @@ export default function Footer() {
             </span>
           </Link>
           <p>
-            Your neighbourhood mela of food — fresh restaurant dishes, sweets,
-            groceries &amp; daily essentials, delivered fast across Birmaharajpur.
+            Your neighbourhood mela — fresh groceries &amp; daily essentials,
+            delivered fast across Birmaharajpur.
           </p>
           <p style={{ marginTop: 8, fontSize: 13, color: '#c6cfc8' }}>
             Helpline: <a href="tel:8144503650" style={{ color: '#ffc531', fontWeight: 700 }}>8144503650</a>
@@ -110,7 +110,6 @@ export default function Footer() {
         <div className="footer-col">
           <h4>Explore</h4>
           <Link to="/grocery">Shop Grocery</Link>
-          <Link to="/grocery">Fresh Grocery</Link>
           <Link to="/restaurants">Restaurants</Link>
           <Link to="/offers">Offers</Link>
         </div>
@@ -125,12 +124,12 @@ export default function Footer() {
       </div>
 
       <div className="footer-bottom">
-        <div className="tagline">“Good Food Brings People Together”</div>
+        <div className="tagline">“Freshness Brings People Together”</div>
         <div style={{ marginTop: 8, fontSize: 12, lineHeight: 1.6, opacity: 0.88 }}>
           © 2026 FoodMela (foodmela.online) · Digital Hyperlocal Delivery Intermediary · Birmaharajpur, Subarnapur, Odisha - 767018
         </div>
         <div style={{ fontSize: 11.5, opacity: 0.75, marginTop: 4 }}>
-          Helpline &amp; Grievance Redressal: +91 8144503650 | Email: support@foodmela.online | Food cooked &amp; packaged by licensed merchant partners
+          Helpline &amp; Grievance Redressal: +91 8144503650 | Email: support@foodmela.online | Goods packed &amp; delivered by licensed merchant partners
         </div>
       </div>
     </footer>

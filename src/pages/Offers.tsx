@@ -29,7 +29,7 @@ export default function Offers() {
     <div className="page-enter">
       <div className="mela-pagehead">
         <div className="mela-pagehead-inner">
-          <h1>Today&apos;s FoodMela <span className="accent">picks</span></h1>
+          <h1>Today&apos;s <span className="accent">picks</span></h1>
           <p>Local love deals + festival specials + live store discounts.</p>
         </div>
       </div>

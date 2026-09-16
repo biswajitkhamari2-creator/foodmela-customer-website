@@ -145,12 +145,12 @@ export default function Home() {
               <span className="pulse" aria-hidden="true" /> Now serving {city}
             </span>
             <h1>
-              Good Food.
+              Daily Essentials.
               <br />
               <span className="w-leaf">Made</span> <span className="w-chili">Local.</span>
             </h1>
             <p className="mela-sub">
-              Discover amazing food, fresh groceries and local favourites delivered to your doorstep.
+              Discover fresh groceries and local favourites delivered to your doorstep.
             </p>
             <div className="mela-cta">
               <button className="btn-primary" onClick={() => requireLogin(scrollToMenu)}>Order Now →</button>
@@ -173,7 +173,7 @@ export default function Home() {
               📍 Delivering to <strong>&nbsp;{area}, {city}&nbsp;</strong> · Change ▾
             </button>
             <div className="mela-stats">
-              <div><strong>{allItems.length}+</strong><span>Dishes &amp; essentials</span></div>
+              <div><strong>{allItems.length}+</strong><span>Items &amp; essentials</span></div>
               <div><strong>{avgRating}★</strong><span>Loved by locals</span></div>
               <div><strong>~30 min</strong><span>Avg. delivery</span></div>
             </div>
@@ -352,7 +352,7 @@ export default function Home() {
           <div className="section" id="offers">
             <div className="section-head">
               <div>
-                <h2>Today&apos;s FoodMela <span className="accent">picks</span></h2>
+                <h2>Today&apos;s <span className="accent">picks</span></h2>
                 <p>Local love deals + festival specials</p>
               </div>
               <span className="link-more" onClick={() => nav('/offers')}>All offers →</span>
@@ -396,12 +396,12 @@ export default function Home() {
             </div>
           )}
 
-          {/* ── YOUR FOODMELA FAVOURITES ── */}
+          {/* ── YOUR MELa FAVOURITES ── */}
           {favItems.length > 0 && (
             <div className="section">
               <div className="section-head">
                 <div>
-                  <h2>Your FoodMela <span className="accent-chili">favourites</span></h2>
+                  <h2>Your <span className="accent-chili">favourites</span></h2>
                   <p>Your saved collection, one tap away</p>
                 </div>
                 <span className="link-more" onClick={() => nav('/profile')}>Manage →</span>
@@ -420,7 +420,7 @@ export default function Home() {
               <div className="section-head">
                 <div>
                   <h2>Because you <span className="accent">ordered…</span></h2>
-                  <p>More from the kitchens you love</p>
+                  <p>More from the stores you love</p>
                 </div>
               </div>
               <div className="h-scroll">
