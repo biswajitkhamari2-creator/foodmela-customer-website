@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { PROMO_OFFERS } from '../data/catalog';
+import { PROMO_OFFERS, FOOD_MENU_CATS } from '../data/catalog';
 import { useShop } from '../store';
 import FoodCard from '../components/FoodCard';
 import OfferCard from '../components/OfferCard';
@@ -12,6 +12,7 @@ export default function Offers() {
   const deals = useMemo(
     () =>
       allItems
+        .filter((c) => !FOOD_MENU_CATS.has(c.category))
         .map((c) => {
           const mrp = mrpOf(c);
           const price = priceOf(c);

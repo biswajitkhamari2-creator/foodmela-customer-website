@@ -188,8 +188,8 @@ export default function CartDrawer({ open, onClose }: { open: boolean; onClose: 
               <div className="empty-icon">🍽️</div>
               <h3>Cart is empty</h3>
               <p>Add something delicious!</p>
-              <button className="btn-primary" style={{ marginTop: 16 }} onClick={() => { onClose(); nav('/food'); }}>
-                Browse Food →
+              <button className="btn-primary" style={{ marginTop: 16 }} onClick={() => { onClose(); nav('/grocery'); }}>
+                Browse Grocery →
               </button>
             </div>
           ) : (

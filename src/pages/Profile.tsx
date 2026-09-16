@@ -156,8 +156,8 @@ export default function Profile() {
               <div className="mela-empty-icon">🤍</div>
               <h3>No cravings saved yet</h3>
               <p>Your favourite meals will live here — tap the heart on any dish.</p>
-              <button className="btn-primary" style={{ marginTop: 16 }} onClick={() => nav('/food')}>
-                Explore Food →
+              <button className="btn-primary" style={{ marginTop: 16 }} onClick={() => nav('/grocery')}>
+                Explore Grocery →
               </button>
             </div>
           ) : (
