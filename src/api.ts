@@ -2,7 +2,7 @@
 // VITE_BACKEND_URL override for local dev, legacy vercel.app URL as fallback.
 // Order anywhere (app or website) → same kitchen, same riders, same admin.
 const BASE = (import.meta.env.VITE_BACKEND_URL as string | undefined)?.replace(/\/$/, '')
-  ?? (import.meta.env.PROD ? '' : 'https://food-mela-backend.vercel.app');
+  ?? 'https://food-mela-backend.vercel.app';
 
 // Orders ALSO mirror to Firestore so rider apps (Firestore listeners) see
 // website orders instantly — same doc shape the apps use.
