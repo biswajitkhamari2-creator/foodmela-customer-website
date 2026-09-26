@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useShop } from '../store';
 import FoodCard from '../components/FoodCard';
@@ -31,52 +31,8 @@ export default function Profile() {
   }
 
   const initial = (user.name.trim()[0] ?? 'F').toUpperCase();
-  // ── Instant name edit: pushes to backend (single source of truth).
-  // App + admin pick it up live via their listeners — no delay.
-  const [editingName, setEditingName] = useState(false);
-  const [draftName, setDraftName] = useState('');
-  const [savingName, setSavingName] = useState(false);
-  const [nameMsg, setNameMsg] = useState('');
-
-  const saveName = async () => {
-    const clean = draftName.trim();
-    if (!user || clean.length < 2) { setNameMsg('Enter a valid name'); return; }
-    if (clean === user.name) { setEditingName(false); return; }
-    setSavingName(true);
-    setNameMsg('');
-    try {
-      const token = sessionStorage.getItem('fm_api_token') ?? '';
-      const res = await fetch(`/api/user/${encodeURIComponent(user.phone)}/profile`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
-        body: JSON.stringify({ name: clean }),
-      });
-      if (res.status === 401) throw new Error('auth');
-      if (res.status === 409) {
-        // Someone (another device/admin) saved a newer name — pull it.
-        const data = (await res.json().catch(() => null)) as { user?: { fullName?: string; name?: string } } | null;
-        const fresh = String(data?.user?.fullName ?? data?.user?.name ?? '').trim();
-        if (fresh) setUser({ ...user, name: fresh });
-        throw new Error('conflict');
-      }
-      if (!res.ok) throw new Error('save failed');
-      const data = (await res.json()) as { user?: { fullName?: string; name?: string; updatedAt?: number } };
-      const saved = String(data?.user?.fullName ?? data?.user?.name ?? clean).trim() || clean;
-      setUser({ ...user, name: saved });
-      setEditingName(false);
-      setNameMsg('✓ Name updated everywhere');
-      setTimeout(() => setNameMsg(''), 3000);
-    } catch (e) {
-      const msg = e instanceof Error ? e.message : '';
-      if (msg === 'auth') setNameMsg('Session expired — please log in again');
-      else if (msg === 'conflict') setNameMsg('Name was changed elsewhere — showing latest');
-      else setNameMsg('Could not save — check internet');
-    }
-    setSavingName(false);
-  };
+  // Website is READ-ONLY for profile. Name/address edits happen ONLY in the
+  // mobile app; this page displays the server profile (live-synced).
 
   const rows: { icon: string; bg: string; title: string; sub: string; to: string; danger?: boolean }[] = [
     { icon: '🧾', bg: '#E7F6EC', title: 'My Orders', sub: 'Track, reorder & receipts', to: '/orders' },
@@ -93,36 +49,10 @@ export default function Profile() {
         <div className="profile-hero-inner">
           <div className="profile-avatar" aria-hidden="true">{initial}</div>
           <div>
-            {editingName ? (
-              <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-                <input
-                  className="text-input"
-                  value={draftName}
-                  onChange={(e) => setDraftName(e.target.value)}
-                  placeholder="Your full name"
-                  autoFocus
-                  style={{ maxWidth: 220 }}
-                />
-                <button className="btn-primary" style={{ padding: '9px 18px', fontSize: 13 }} disabled={savingName} onClick={saveName}>
-                  {savingName ? 'Saving…' : 'Save'}
-                </button>
-                <button className="btn-ghost" style={{ padding: '9px 14px', fontSize: 13 }} onClick={() => setEditingName(false)}>
-                  ✕
-                </button>
-              </div>
-            ) : (
-              <h1>
-                {user.name}{' '}
-                <button
-                  onClick={() => { setDraftName(user.name); setEditingName(true); }}
-                  aria-label="Edit name"
-                  style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 16 }}
-                >
-                  ✏️
-                </button>
-              </h1>
-            )}
-            {nameMsg && <p style={{ fontSize: 12, color: nameMsg.startsWith('✓') ? '#0e9f4e' : '#C4271F', fontWeight: 700 }}>{nameMsg}</p>}
+            <h1>{user.name}</h1>
+            <p style={{ fontSize: 12, color: 'rgba(255,255,255,0.78)', marginTop: 4 }}>
+              To change your name or address, use the FoodMela mobile app — it updates here automatically.
+            </p>
             <p>+91 {user.phone}{cartCount > 0 ? ` · ${cartCount} item${cartCount === 1 ? '' : 's'} in your thali` : ''}</p>
             {user.address && <p>📍 {user.address}</p>}
           </div>

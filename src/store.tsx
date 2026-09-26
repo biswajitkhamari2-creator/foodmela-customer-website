@@ -157,9 +157,10 @@ export function ShopProvider({ children }: { children: React.ReactNode }) {
   }, [cart]);
 
   // ── LIVE profile sync: backend is the single source of truth.
-  // If the name changes anywhere (app, admin), this open website updates
-  // within seconds — no reload, no re-login. Firestore onSnapshot (push,
-  // ~1s) with a 15s authenticated poll fallback while logged in.
+  // App/admin name changes update this open website with no reload or
+  // re-login. Layer 1 = Firestore onSnapshot push (~1s, via the backend's
+  // users/{phone} mirror). Layer 2 = 5s public-GET poll fallback (the
+  // profile GET is intentionally public; orders stay token-guarded).
   useEffect(() => {
     if (!user) return;
     const phone = user.phone;
@@ -177,7 +178,7 @@ export function ShopProvider({ children }: { children: React.ReactNode }) {
     };
     // Push path: Firestore mirror written by the backend profile endpoint.
     // Website is unauthenticated for Firestore reads — a denied read simply
-    // never fires, and the 15s poll fallback below covers it.
+    // never fires, and the poll fallback below covers it.
     const unsubFs = onSnapshot(
       doc(db, 'users', phone),
       (snap) => {
@@ -189,29 +190,33 @@ export function ShopProvider({ children }: { children: React.ReactNode }) {
       },
       () => { /* permission-denied — poll fallback covers it */ },
     );
+    // Reconnect recovery: fresh pull whenever the tab becomes visible again.
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') void sync();
+    };
+    document.addEventListener('visibilitychange', onVisible);
+    window.addEventListener('online', onVisible);
     const sync = async () => {
       try {
-        let token = '';
-        try {
-          token = localStorage.getItem('fm_api_token') ?? sessionStorage.getItem('fm_api_token') ?? '';
-        } catch { /* ignore */ }
-        // Always hit the real backend — tokens are minted there, not on foodmela.online
-        const res = await fetch(`https://food-mela-backend.vercel.app/api/user/${encodeURIComponent(phone)}`, {
-          headers: token ? { Authorization: `Bearer ${token}` } : {},
-        });
-        if (!res.ok || dead) return;
-        const data = (await res.json()) as { user?: Record<string, unknown> };
+        const { api } = await import('./api');
+        const data = await api.userProfile(phone);
         const u = data.user ?? {};
         const freshName = String(u.fullName ?? u.name ?? '').trim();
         const addrs = Array.isArray(u.addresses) ? (u.addresses as Record<string, unknown>[]) : [];
         const freshAddr = String(addrs[0]?.address ?? u.address ?? '').trim();
         applyFresh(freshName, freshAddr || undefined);
-      } catch { /* backend unreachable — keep current */ }
+      } catch { /* backend unreachable — keep current, retry next tick */ }
     };
-    const t = setInterval(sync, 15000);
+    const t = setInterval(sync, 5000);
     // Also run once immediately to pick up app changes right after login
     void sync();
-    return () => { dead = true; clearInterval(t); unsubFs?.(); };
+    return () => {
+      dead = true;
+      clearInterval(t);
+      unsubFs?.();
+      document.removeEventListener('visibilitychange', onVisible);
+      window.removeEventListener('online', onVisible);
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.phone]);
 

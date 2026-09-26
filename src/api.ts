@@ -126,8 +126,11 @@ export const api = {
   userOrders: (phone: string) =>
     req<{ success: boolean; orders: BackendOrder[] }>(`/api/user/${encodeURIComponent(phone)}/orders`, undefined, true),
 
+  // Profile GET is intentionally PUBLIC (backend has no requireSelf on it):
+  // name/address are needed for login lookup + live sync without a token.
+  // Orders/history stay token-guarded. No auth flag here on purpose.
   userProfile: (phone: string) =>
-    req<{ success: boolean; user: Record<string, unknown> }>(`/api/user/${encodeURIComponent(phone)}`, undefined, true),
+    req<{ success: boolean; user: Record<string, unknown> }>(`/api/user/${encodeURIComponent(phone)}`),
 
   register: (body: { phone: string; name: string; address: string }) =>
     req<{ success: boolean; user: { phone: string; name: string; address: string } }>('/api/user/register', {
