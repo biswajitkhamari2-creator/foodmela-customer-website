@@ -124,10 +124,10 @@ export const api = {
     }),
 
   userOrders: (phone: string) =>
-    req<{ success: boolean; orders: BackendOrder[] }>(`/api/user/${encodeURIComponent(phone)}/orders`),
+    req<{ success: boolean; orders: BackendOrder[] }>(`/api/user/${encodeURIComponent(phone)}/orders`, undefined, true),
 
   userProfile: (phone: string) =>
-    req<{ success: boolean; user: Record<string, unknown> }>(`/api/user/${encodeURIComponent(phone)}`),
+    req<{ success: boolean; user: Record<string, unknown> }>(`/api/user/${encodeURIComponent(phone)}`, undefined, true),
 
   register: (body: { phone: string; name: string; address: string }) =>
     req<{ success: boolean; user: { phone: string; name: string; address: string } }>('/api/user/register', {
