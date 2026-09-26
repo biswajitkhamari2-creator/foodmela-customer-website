@@ -43,6 +43,28 @@ declare global {
   }
 }
 
+// ── Per-phone name cache ─────────────────────────────────────────────────────
+// Survives logout, tab close, browser restart — once a name is known for a
+// phone number we NEVER ask again. Key: fm_known_{10-digit-phone}
+// Value: JSON { name, address }
+function getCachedProfile(phone: string): { name: string; address: string } | null {
+  try {
+    const raw = localStorage.getItem(`fm_known_${phone}`);
+    if (!raw) return null;
+    const obj = JSON.parse(raw) as { name?: string; address?: string };
+    const name = (obj.name ?? '').trim();
+    return name ? { name, address: (obj.address ?? '').trim() } : null;
+  } catch {
+    return null;
+  }
+}
+
+function setCachedProfile(phone: string, name: string, address: string) {
+  try {
+    localStorage.setItem(`fm_known_${phone}`, JSON.stringify({ name, address }));
+  } catch { /* ignore */ }
+}
+
 export default function Login() {
   const { setUser } = useShop();
   const nav = useNavigate();
@@ -134,11 +156,38 @@ export default function Login() {
     }
     setStep('Looking up your account…');
 
-    // Same identity lookup as the app — Firestore users/{phone}.
-    // Website is unauthenticated so this read is usually denied by rules —
-    // that just means "treat as new customer", never a fatal error.
-    // The read can also hang (offline persistence retry), so race it: a
-    // denial OR a 6s stall both fall through to the profile step.
+    // ── STEP 0: localStorage cache — instant, survives logout/tab-close ──
+    // Once a name is known for this phone we NEVER ask again, at any cost.
+    // A silent background fetch updates the cache after login if name changed.
+    const cached = getCachedProfile(phone);
+    if (cached) {
+      try {
+        sessionStorage.removeItem('fm_pe_phone');
+        sessionStorage.removeItem('fm_pe_name');
+      } catch { /* ignore */ }
+      setUser({ name: cached.name, phone, address: cached.address });
+      // Non-blocking background refresh — picks up name changes from app
+      void (async () => {
+        try {
+          const { api } = await import('../api');
+          const res = await api.userProfile(phone);
+          const u = res.user as Record<string, unknown>;
+          const freshName = String(u.fullName ?? u.name ?? '').trim();
+          const addrs = Array.isArray(u.addresses) ? (u.addresses as Record<string, unknown>[]) : [];
+          const freshAddr = String(addrs[0]?.address ?? u.address ?? cached.address).trim();
+          if (freshName) {
+            setCachedProfile(phone, freshName, freshAddr);
+            setUser({ name: freshName, phone, address: freshAddr });
+          }
+        } catch { /* ignore — cached name already in use */ }
+      })();
+      nav('/');
+      return;
+    }
+
+    // ── STEP 1: Firestore users/{phone} — fast when rules allow read ──
+    // Website is unauthenticated so this read is often denied.
+    // A denial OR a 6s stall both fall through silently to step 2.
     try {
       const snap = await Promise.race([
         getDoc(doc(db, 'users', phone)),
@@ -158,7 +207,11 @@ export default function Login() {
             `${String(d.firstName ?? '').trim()} ${String(d.lastName ?? '').trim()}`.trim());
         const addr = String(d.deliveryAddress ?? d.address ?? '').trim();
         if (fullName) {
-          // Returning customer — straight in, name never asked again
+          setCachedProfile(phone, fullName, addr);
+          try {
+            sessionStorage.removeItem('fm_pe_phone');
+            sessionStorage.removeItem('fm_pe_name');
+          } catch { /* ignore */ }
           setUser({ name: fullName, phone, address: addr });
           nav('/');
           return;
@@ -168,15 +221,15 @@ export default function Login() {
       // Rules denied the read (unauthenticated web) — fall through to backend check
     }
 
-    // Backend Redis profile — the same store the apps use. A returning
-    // customer (name saved from app or a previous website visit) goes
-    // straight in; only a brand-new number sees the name/address form.
+    // ── STEP 2: Backend Redis profile — single source of truth ──
+    // Returning customer (name saved from app or a previous website visit)
+    // goes straight in; only a brand-new number sees the name/address form.
     try {
       const { api } = await import('../api');
       const res = await withTimeout(
         api.userProfile(phone),
         STEP_TIMEOUT_MS,
-        'Verification server',
+        'Profile server',
       );
       const u = res.user as Record<string, unknown>;
       if (String(u.accountStatus ?? 'active') === 'blocked') {
@@ -193,6 +246,7 @@ export default function Login() {
           sessionStorage.removeItem('fm_pe_phone');
           sessionStorage.removeItem('fm_pe_name');
         } catch { /* ignore */ }
+        setCachedProfile(phone, fullName, addr);
         setUser({ name: fullName, phone, address: addr });
         nav('/');
         return;
@@ -201,8 +255,8 @@ export default function Login() {
       // Backend unreachable — fall through to profile step
     }
 
-    // Brand-new number — ask name + address once.
-    // The widget often already knows the name — prefill it.
+    // ── STEP 3: Brand-new number — ask name + address ONCE ──
+    // Widget often already knows the name — prefill it.
     setNeedProfile({ phone, name: widgetName || undefined });
     setBusy(false);
     setStep('');
@@ -228,7 +282,11 @@ export default function Login() {
         sessionStorage.removeItem('fm_pe_phone');
         sessionStorage.removeItem('fm_pe_name');
       } catch { /* ignore */ }
-      setUser({ name: res.user.name || name.trim(), phone: res.user.phone, address: res.user.address || address.trim() });
+      const savedName = res.user.name || cleanName;
+      const savedAddr = res.user.address || finalAddress;
+      // Cache permanently — this number will NEVER be asked name again
+      setCachedProfile(needProfile.phone, savedName, savedAddr);
+      setUser({ name: savedName, phone: res.user.phone, address: savedAddr });
       nav('/');
     } catch (e) {
       // Distinguish the real failure — never blame the backend for everything.

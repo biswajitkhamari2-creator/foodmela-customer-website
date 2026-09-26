@@ -164,10 +164,16 @@ export function ShopProvider({ children }: { children: React.ReactNode }) {
     if (!user) return;
     const phone = user.phone;
     let dead = false;
-    const applyFresh = (fresh: string) => {
+    const applyFresh = (fresh: string, freshAddr?: string) => {
       if (dead || !fresh || fresh === user.name) return;
-      setUserState({ ...user, name: fresh });
-      try { localStorage.setItem('fm_user', JSON.stringify({ ...user, name: fresh })); } catch { /* ignore */ }
+      const addr = freshAddr ?? user.address;
+      const updated = { ...user, name: fresh, address: addr };
+      setUserState(updated);
+      try {
+        localStorage.setItem('fm_user', JSON.stringify(updated));
+        // Keep per-phone cache in sync — next logout→login uses fresh name
+        localStorage.setItem(`fm_known_${phone}`, JSON.stringify({ name: fresh, address: addr }));
+      } catch { /* ignore */ }
     };
     // Push path: Firestore mirror written by the backend profile endpoint.
     // Website is unauthenticated for Firestore reads — a denied read simply
@@ -177,24 +183,34 @@ export function ShopProvider({ children }: { children: React.ReactNode }) {
       (snap) => {
         if (dead || !snap.exists()) return;
         const d = snap.data() as Record<string, unknown>;
-        applyFresh(String(d.fullName ?? d.name ?? '').trim());
+        const freshName = String(d.fullName ?? d.name ?? '').trim();
+        const freshAddr = String(d.deliveryAddress ?? d.address ?? '').trim();
+        applyFresh(freshName, freshAddr || undefined);
       },
       () => { /* permission-denied — poll fallback covers it */ },
     );
     const sync = async () => {
       try {
         let token = '';
-        try { token = sessionStorage.getItem('fm_api_token') ?? ''; } catch { /* ignore */ }
-        const res = await fetch(`/api/user/${encodeURIComponent(phone)}`, {
+        try {
+          token = localStorage.getItem('fm_api_token') ?? sessionStorage.getItem('fm_api_token') ?? '';
+        } catch { /* ignore */ }
+        // Always hit the real backend — tokens are minted there, not on foodmela.online
+        const res = await fetch(`https://food-mela-backend.vercel.app/api/user/${encodeURIComponent(phone)}`, {
           headers: token ? { Authorization: `Bearer ${token}` } : {},
         });
         if (!res.ok || dead) return;
         const data = (await res.json()) as { user?: Record<string, unknown> };
         const u = data.user ?? {};
-        applyFresh(String(u.fullName ?? u.name ?? '').trim());
+        const freshName = String(u.fullName ?? u.name ?? '').trim();
+        const addrs = Array.isArray(u.addresses) ? (u.addresses as Record<string, unknown>[]) : [];
+        const freshAddr = String(addrs[0]?.address ?? u.address ?? '').trim();
+        applyFresh(freshName, freshAddr || undefined);
       } catch { /* backend unreachable — keep current */ }
     };
     const t = setInterval(sync, 15000);
+    // Also run once immediately to pick up app changes right after login
+    void sync();
     return () => { dead = true; clearInterval(t); unsubFs?.(); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.phone]);
