@@ -226,8 +226,28 @@ export default function Login() {
       } catch { /* ignore */ }
       setUser({ name: res.user.name || name.trim(), phone: res.user.phone, address: res.user.address || address.trim() });
       nav('/');
-    } catch {
-      setErr('Could not save profile — is the backend online? Please try again.');
+    } catch (e) {
+      // Distinguish the real failure — never blame the backend for everything.
+      const msg = e instanceof Error ? e.message : '';
+      if (/Backend 401/.test(msg)) {
+        setErr('Session expired — please verify your number again.');
+        try {
+          sessionStorage.removeItem('fm_api_token');
+          sessionStorage.removeItem('fm_pe_phone');
+          sessionStorage.removeItem('fm_pe_name');
+        } catch { /* ignore */ }
+        setNeedProfile(null);
+      } else if (/Backend 403/.test(msg)) {
+        setErr('This number does not match your verified session. Please verify again.');
+      } else if (/Backend 503/.test(msg)) {
+        setErr('Server is under maintenance — please try again shortly.');
+      } else if (/timed out|Failed to fetch|NetworkError|Load failed/i.test(msg)) {
+        setErr('Could not reach the server — check your internet and try again.');
+      } else if (/Backend 5/.test(msg)) {
+        setErr('Something went wrong on our side — please try again in a moment.');
+      } else {
+        setErr('Could not save profile — please try again.');
+      }
     }
     setBusy(false);
   };
