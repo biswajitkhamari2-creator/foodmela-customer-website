@@ -45,20 +45,35 @@ export default function Profile() {
     setSavingName(true);
     setNameMsg('');
     try {
-      const { api } = await import('../api');
+      const token = sessionStorage.getItem('fm_api_token') ?? '';
       const res = await fetch(`/api/user/${encodeURIComponent(user.phone)}/profile`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
         body: JSON.stringify({ name: clean }),
       });
+      if (res.status === 401) throw new Error('auth');
+      if (res.status === 409) {
+        // Someone (another device/admin) saved a newer name — pull it.
+        const data = (await res.json().catch(() => null)) as { user?: { fullName?: string; name?: string } } | null;
+        const fresh = String(data?.user?.fullName ?? data?.user?.name ?? '').trim();
+        if (fresh) setUser({ ...user, name: fresh });
+        throw new Error('conflict');
+      }
       if (!res.ok) throw new Error('save failed');
-      setUser({ ...user, name: clean });
-      try { void api.register({ phone: user.phone, name: clean, address: user.address }); } catch { /* name already saved */ }
+      const data = (await res.json()) as { user?: { fullName?: string; name?: string; updatedAt?: number } };
+      const saved = String(data?.user?.fullName ?? data?.user?.name ?? clean).trim() || clean;
+      setUser({ ...user, name: saved });
       setEditingName(false);
       setNameMsg('✓ Name updated everywhere');
       setTimeout(() => setNameMsg(''), 3000);
-    } catch {
-      setNameMsg('Could not save — check internet');
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : '';
+      if (msg === 'auth') setNameMsg('Session expired — please log in again');
+      else if (msg === 'conflict') setNameMsg('Name was changed elsewhere — showing latest');
+      else setNameMsg('Could not save — check internet');
     }
     setSavingName(false);
   };

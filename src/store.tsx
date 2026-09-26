@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useEffect, useMemo, useState } from 'react';
-import { collection, onSnapshot } from 'firebase/firestore';
+import { collection, doc, onSnapshot } from 'firebase/firestore';
 import { db } from './firebase';
 import { CATALOG, HIDDEN_ITEM_IDS, readFavs, writeFavs, type CatalogItem } from './data/catalog';
 
@@ -158,26 +158,44 @@ export function ShopProvider({ children }: { children: React.ReactNode }) {
 
   // ── LIVE profile sync: backend is the single source of truth.
   // If the name changes anywhere (app, admin), this open website updates
-  // within seconds — no reload, no re-login. Polls every 15s while logged in.
+  // within seconds — no reload, no re-login. Firestore onSnapshot (push,
+  // ~1s) with a 15s authenticated poll fallback while logged in.
   useEffect(() => {
     if (!user) return;
     const phone = user.phone;
     let dead = false;
+    const applyFresh = (fresh: string) => {
+      if (dead || !fresh || fresh === user.name) return;
+      setUserState({ ...user, name: fresh });
+      try { localStorage.setItem('fm_user', JSON.stringify({ ...user, name: fresh })); } catch { /* ignore */ }
+    };
+    // Push path: Firestore mirror written by the backend profile endpoint.
+    // Website is unauthenticated for Firestore reads — a denied read simply
+    // never fires, and the 15s poll fallback below covers it.
+    const unsubFs = onSnapshot(
+      doc(db, 'users', phone),
+      (snap) => {
+        if (dead || !snap.exists()) return;
+        const d = snap.data() as Record<string, unknown>;
+        applyFresh(String(d.fullName ?? d.name ?? '').trim());
+      },
+      () => { /* permission-denied — poll fallback covers it */ },
+    );
     const sync = async () => {
       try {
-        const res = await fetch(`/api/user/${encodeURIComponent(phone)}`);
+        let token = '';
+        try { token = sessionStorage.getItem('fm_api_token') ?? ''; } catch { /* ignore */ }
+        const res = await fetch(`/api/user/${encodeURIComponent(phone)}`, {
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+        });
         if (!res.ok || dead) return;
         const data = (await res.json()) as { user?: Record<string, unknown> };
         const u = data.user ?? {};
-        const fresh = String(u.fullName ?? u.name ?? '').trim();
-        if (fresh && fresh !== user.name) {
-          setUserState({ ...user, name: fresh });
-          try { localStorage.setItem('fm_user', JSON.stringify({ ...user, name: fresh })); } catch { /* ignore */ }
-        }
+        applyFresh(String(u.fullName ?? u.name ?? '').trim());
       } catch { /* backend unreachable — keep current */ }
     };
     const t = setInterval(sync, 15000);
-    return () => { dead = true; clearInterval(t); };
+    return () => { dead = true; clearInterval(t); unsubFs?.(); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.phone]);
 
