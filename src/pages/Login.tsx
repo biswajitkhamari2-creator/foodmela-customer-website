@@ -209,15 +209,16 @@ export default function Login() {
   // Website never writes Firestore directly (rules deny unauthenticated writes).
   const saveProfile = async () => {
     if (!needProfile) return;
-    if (!name.trim()) { setErr('Enter your name'); return; }
-    if (!address.trim()) { setErr('Enter your delivery address'); return; }
+    const cleanName = name.trim();
+    if (!cleanName) { setErr('Enter your name'); return; }
+    const finalAddress = address.trim() || 'Birmaharajpur';
     setBusy(true);
     setErr('');
     try {
       const res = await (await import('../api')).api.register({
         phone: needProfile.phone,
-        name: name.trim(),
-        address: address.trim(),
+        name: cleanName,
+        address: finalAddress,
       });
       if (!res.success) throw new Error('register failed');
       try {
