@@ -40,9 +40,16 @@ async function mirrorToFirestore(order: BackendOrder, body: {
   }
 }
 
-async function req<T>(path: string, init?: RequestInit): Promise<T> {
+async function req<T>(path: string, init?: RequestInit, auth = false): Promise<T> {
+  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+  if (auth) {
+    try {
+      const t = sessionStorage.getItem('fm_api_token');
+      if (t) headers.Authorization = `Bearer ${t}`;
+    } catch { /* ignore */ }
+  }
   const res = await fetch(`${BASE}${path}`, {
-    headers: { 'Content-Type': 'application/json' },
+    headers,
     ...init,
   });
   if (!res.ok) throw new Error(`Backend ${res.status}`);
@@ -126,13 +133,13 @@ export const api = {
     req<{ success: boolean; user: { phone: string; name: string; address: string } }>('/api/user/register', {
       method: 'POST',
       body: JSON.stringify(body),
-    }),
+    }, true),
 
   // OTP verification via backend proxy (phone.email blocks browser CORS).
   // Official widget flow sends { user_json_url }; legacy redirect flow sends
   // { access_token } — the backend accepts both.
   verifyPhoneEmail: (body: { user_json_url: string } | { access_token: string }) =>
-    req<{ success: boolean; phone: string; name: string | null; jwt: string | null }>('/api/auth/phone-email/verify', {
+    req<{ success: boolean; phone: string; name: string | null; jwt: string | null; apiToken?: string }>('/api/auth/phone-email/verify', {
       method: 'POST',
       body: JSON.stringify(body),
     }),
