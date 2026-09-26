@@ -44,7 +44,7 @@ async function req<T>(path: string, init?: RequestInit, auth = false): Promise<T
   const headers: Record<string, string> = { 'Content-Type': 'application/json' };
   if (auth) {
     try {
-      const t = sessionStorage.getItem('fm_api_token');
+      const t = localStorage.getItem('fm_api_token') || sessionStorage.getItem('fm_api_token');
       if (t) headers.Authorization = `Bearer ${t}`;
     } catch { /* ignore */ }
   }

@@ -121,7 +121,10 @@ export default function Login() {
         if (data.jwt) sessionStorage.setItem('fm_pe_jwt', data.jwt);
         // OTP-minted token — required by /api/user/register (bot block).
         // Without this the profile save gets 401 "Verify OTP first".
-        if (data.apiToken) sessionStorage.setItem('fm_api_token', data.apiToken);
+        if (data.apiToken) {
+          localStorage.setItem('fm_api_token', data.apiToken);
+          sessionStorage.setItem('fm_api_token', data.apiToken);
+        }
       } catch { /* ignore */ }
     } catch {
       setErr('Could not reach verification server. Check your internet and try again.');
