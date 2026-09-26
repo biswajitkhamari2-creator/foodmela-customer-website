@@ -66,14 +66,14 @@ export default function CartDrawer({ open, onClose }: { open: boolean; onClose: 
     setPlacing(true);
     setErr('');
 
-    // If PREPAID, initiate automated Paytm Payment Gateway
+    // If PREPAID, initiate automated PhonePe Payment Gateway redirect
     if (effectiveMode === 'PREPAID') {
       try {
         const orderAddr = effectiveCoupon
           ? `${addr} [PREPAID] [Coupon: ${effectiveCoupon.code} (-₹${discountAmount})]`
           : `${addr} [PREPAID]`;
 
-        const initResp = await fetch('/api/paytm/initiate', {
+        const initResp = await fetch('/api/phonepe/initiate', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -93,58 +93,24 @@ export default function CartDrawer({ open, onClose }: { open: boolean; onClose: 
 
         const initData = await initResp.json();
 
-        if (initData.success && initData.txnToken) {
-          const scriptId = 'paytm-checkoutjs';
-          const host = initData.host || 'securegw-stage.paytm.in';
-          if (!document.getElementById(scriptId)) {
-            const script = document.createElement('script');
-            script.id = scriptId;
-            script.type = 'application/javascript';
-            script.crossOrigin = 'anonymous';
-            script.src = `https://${host}/merchantpgpui/checkoutjs/merchants/${initData.mid}.js`;
-            document.head.appendChild(script);
-            await new Promise((resolve) => {
-              script.onload = resolve;
-              script.onerror = resolve;
-            });
-          }
-
-          // @ts-expect-error Paytm CheckoutJS dynamically injected
-          if (window.Paytm && window.Paytm.CheckoutJS) {
-            const config = {
-              root: '',
-              flow: 'DEFAULT',
-              data: {
-                orderId: initData.orderId,
-                token: initData.txnToken,
-                tokenType: 'TXN_TOKEN',
-                amount: String(initData.amount),
-              },
-              handler: {
-                notifyMerchant: function (eventName: string, d: unknown) {
-                  console.log('Paytm notifyMerchant:', eventName, d);
-                },
-                transactionStatus: function (status: unknown) {
-                  console.log('Paytm transactionStatus:', status);
-                },
-              },
-            };
-            // @ts-expect-error Paytm CheckoutJS dynamically injected
-            window.Paytm.CheckoutJS.init(config).then(() => {
-              // @ts-expect-error Paytm CheckoutJS dynamically injected
-              window.Paytm.CheckoutJS.invoke();
-              setPlacing(false);
-            }).catch(() => {
-              setPlacing(false);
-            });
-            return;
-          }
+        if (initData.success && initData.redirectUrl) {
+          // Redirect browser to PhonePe Secure Gateway
+          window.location.href = initData.redirectUrl;
+          return;
+        } else {
+          setErr(initData.error || 'Could not connect to PhonePe Gateway. Try again or select COD.');
+          setPlacing(false);
+          return;
         }
-      } catch (e) {
-        console.warn('Paytm initiate error, continuing to place order:', e);
+      } catch (e: unknown) {
+        console.error('PhonePe initiate error:', e);
+        setErr('PhonePe Gateway unreachable. Please check connection or try COD.');
+        setPlacing(false);
+        return;
       }
     }
 
+    // COD Flow (Only for orders <= ₹100)
     try {
       const res = await api.placeOrder({
         customerName: user.name,
@@ -421,66 +387,99 @@ export default function CartDrawer({ open, onClose }: { open: boolean; onClose: 
                 />
               </div>
 
-              {/* Payment Method Section */}
-              <div className="pay-opt-box" style={{ margin: '10px 0 14px', background: '#f7f9f6', padding: '12px', borderRadius: '14px', border: '1px solid var(--border)' }}>
-                <div style={{ fontSize: '11px', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.8px', color: '#66707D', marginBottom: '8px' }}>
-                  Payment Method
+              {/* Payment Method Section — Solid Vibrant Green Highlight on Select */}
+              <div className="pay-opt-box" style={{ margin: '14px 0 16px', background: '#f8faf9', padding: '14px', borderRadius: '18px', border: '1.5px solid #e2ede5' }}>
+                <div style={{ fontSize: '11.5px', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.8px', color: '#64748b', marginBottom: '10px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <span>💳 Select Payment Method</span>
+                  <span style={{ fontSize: '11px', color: '#0e9f4e', fontWeight: 900 }}>
+                    {paymentMode === 'prepaid' ? '⚡ Instant Online / UPI' : '💵 Cash on Delivery'}
+                  </span>
                 </div>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
-                  <button
-                    type="button"
-                    onClick={() => isCodAllowed && setPaymentMode('cod')}
-                    disabled={!isCodAllowed}
-                    style={{
-                      padding: '8px 6px',
-                      borderRadius: '10px',
-                      border: `1.5px solid ${paymentMode === 'cod' && isCodAllowed ? 'var(--green)' : '#D8DED6'}`,
-                      background: paymentMode === 'cod' && isCodAllowed ? 'var(--green-tint)' : isCodAllowed ? '#fff' : '#f1f3f0',
-                      color: !isCodAllowed ? '#9AA3AF' : paymentMode === 'cod' ? 'var(--green-ink)' : '#2B323B',
-                      cursor: isCodAllowed ? 'pointer' : 'not-allowed',
-                      fontSize: '11.5px',
-                      fontWeight: 700,
-                      textAlign: 'center',
-                      fontFamily: 'inherit',
-                    }}
-                  >
-                    💵 Cash on Delivery
-                    <span style={{ display: 'block', fontSize: '10px', fontWeight: 600, color: isCodAllowed ? 'var(--green-ink)' : '#C4271F', marginTop: '2px' }}>
-                      {isCodAllowed ? 'Available (≤ ₹100)' : 'Unavailable (> ₹100)'}
-                    </span>
-                  </button>
-
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                  {/* Online / UPI Option */}
                   <button
                     type="button"
                     onClick={() => setPaymentMode('prepaid')}
                     style={{
-                      padding: '8px 6px',
-                      borderRadius: '10px',
-                      border: `1.5px solid ${paymentMode === 'prepaid' || !isCodAllowed ? 'var(--green)' : '#D8DED6'}`,
-                      background: paymentMode === 'prepaid' || !isCodAllowed ? 'var(--green-tint)' : '#fff',
-                      color: paymentMode === 'prepaid' || !isCodAllowed ? 'var(--green-ink)' : '#2B323B',
+                      padding: '12px 10px',
+                      borderRadius: '14px',
+                      border: paymentMode === 'prepaid' ? '2px solid #065427' : '1.5px solid #e2ede5',
+                      background: paymentMode === 'prepaid'
+                        ? 'linear-gradient(135deg, #0e9f4e 0%, #097337 100%)'
+                        : '#ffffff',
+                      color: paymentMode === 'prepaid' ? '#ffffff' : '#374151',
                       cursor: 'pointer',
-                      fontSize: '11.5px',
-                      fontWeight: 700,
+                      fontSize: '12.5px',
+                      fontWeight: 800,
                       textAlign: 'center',
                       fontFamily: 'inherit',
+                      boxShadow: paymentMode === 'prepaid' ? '0 8px 20px rgba(14, 159, 78, 0.4)' : '0 2px 6px rgba(0,0,0,0.02)',
+                      transform: paymentMode === 'prepaid' ? 'translateY(-2px)' : 'none',
+                      transition: 'all 0.2s cubic-bezier(0.16, 1, 0.3, 1)',
+                      position: 'relative',
+                      overflow: 'hidden',
                     }}
                   >
-                    📱 Online / Prepaid
-                    <span style={{ display: 'block', fontSize: '10px', fontWeight: 600, color: 'var(--green-ink)', marginTop: '2px' }}>
-                      UPI / QR Transfer
+                    {paymentMode === 'prepaid' && (
+                      <span style={{ position: 'absolute', top: '4px', right: '6px', background: '#ffc531', color: '#451a03', fontSize: '9px', fontWeight: 900, padding: '2px 7px', borderRadius: '999px', boxShadow: '0 2px 6px rgba(0,0,0,0.18)' }}>
+                        ✓ ACTIVE
+                      </span>
+                    )}
+                    <span style={{ display: 'block', fontSize: '18px', marginBottom: '2px' }}>⚡ 📱</span>
+                    <span>Online / UPI</span>
+                    <span style={{ display: 'block', fontSize: '10.5px', fontWeight: 700, color: paymentMode === 'prepaid' ? '#ffc531' : '#6b7280', marginTop: '3px' }}>
+                      Fast Paytm / GPay / QR
+                    </span>
+                  </button>
+
+                  {/* Cash on Delivery Option */}
+                  <button
+                    type="button"
+                    onClick={() => setPaymentMode('cod')}
+                    style={{
+                      padding: '12px 10px',
+                      borderRadius: '14px',
+                      border: paymentMode === 'cod' ? '2px solid #065427' : !isCodAllowed ? '1.5px solid #fecdd3' : '1.5px solid #e2ede5',
+                      background: paymentMode === 'cod'
+                        ? 'linear-gradient(135deg, #0e9f4e 0%, #097337 100%)'
+                        : !isCodAllowed
+                        ? '#fff1f2'
+                        : '#ffffff',
+                      color: paymentMode === 'cod' ? '#ffffff' : !isCodAllowed ? '#9ca3af' : '#374151',
+                      cursor: 'pointer',
+                      fontSize: '12.5px',
+                      fontWeight: 800,
+                      textAlign: 'center',
+                      fontFamily: 'inherit',
+                      boxShadow: paymentMode === 'cod' ? '0 8px 20px rgba(14, 159, 78, 0.4)' : '0 2px 6px rgba(0,0,0,0.02)',
+                      transform: paymentMode === 'cod' ? 'translateY(-2px)' : 'none',
+                      transition: 'all 0.2s cubic-bezier(0.16, 1, 0.3, 1)',
+                      position: 'relative',
+                      overflow: 'hidden',
+                    }}
+                  >
+                    {paymentMode === 'cod' && (
+                      <span style={{ position: 'absolute', top: '4px', right: '6px', background: '#ffc531', color: '#451a03', fontSize: '9px', fontWeight: 900, padding: '2px 7px', borderRadius: '999px', boxShadow: '0 2px 6px rgba(0,0,0,0.18)' }}>
+                        ✓ ACTIVE
+                      </span>
+                    )}
+                    <span style={{ display: 'block', fontSize: '18px', marginBottom: '2px' }}>💵 🧾</span>
+                    <span>Cash on Delivery</span>
+                    <span style={{ display: 'block', fontSize: '10.5px', fontWeight: 700, color: paymentMode === 'cod' ? '#ffc531' : !isCodAllowed ? '#e11d48' : '#6b7280', marginTop: '3px' }}>
+                      {isCodAllowed ? 'Pay cash at door (≤ ₹100)' : 'COD capped at ₹100'}
                     </span>
                   </button>
                 </div>
 
                 {!isCodAllowed && (
-                  <div style={{ fontSize: '11px', color: '#B91C1C', marginTop: '8px', background: '#FEF2F2', padding: '6px 8px', borderRadius: '8px', lineHeight: '1.4' }}>
-                    ℹ️ Orders above ₹100 must be Prepaid. COD is capped at ₹100.
+                  <div style={{ fontSize: '11px', color: '#991b1b', marginTop: '10px', background: '#fef2f2', border: '1px solid #fecdd3', padding: '8px 12px', borderRadius: '10px', lineHeight: '1.45', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <span>ℹ️</span>
+                    <span>Orders above ₹100 are set to <strong>Online / UPI</strong> for safety. COD is capped at ₹100.</span>
                   </div>
                 )}
 
-                <div style={{ fontSize: '10.5px', color: '#56606D', marginTop: '8px', textAlign: 'center', lineHeight: '1.4' }}>
-                  🔒 <strong>100% Sealed Delivery:</strong> Orders are picked up sealed from partner stores. Report transit issues within 60 mins. Helpline: <a href="tel:8144503650" style={{ color: 'var(--green)', fontWeight: 700 }}>8144503650</a>
+                <div style={{ fontSize: '11px', color: '#64748b', marginTop: '10px', textAlign: 'center', lineHeight: '1.45', background: '#ffffff', padding: '8px 10px', borderRadius: '10px', border: '1px solid #e5eee7' }}>
+                  🛡️ <strong>100% Sealed & Safe Delivery:</strong> Picked up directly from partner stores. Helpline: <a href="tel:8144503650" style={{ color: '#0e9f4e', fontWeight: 800 }}>8144503650</a>
                 </div>
               </div>
             </>

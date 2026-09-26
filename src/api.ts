@@ -89,13 +89,31 @@ export const api = {
     return res;
   },
 
+  payuInitiate: (body: {
+    customerName: string;
+    phone: string;
+    address: string;
+    items: { itemId: string; name: string; quantity: number; price: number; totalPrice: number }[];
+    totalAmount: number;
+  }) =>
+    req<{
+      success: boolean;
+      orderId?: string;
+      payuUrl?: string;
+      fields?: Record<string, string>;
+      error?: string;
+    }>('/api/payu/initiate', {
+      method: 'POST',
+      body: JSON.stringify(body),
+    }),
+
   orderStatus: (orderId: string) =>
     req<{ success: boolean; order: BackendOrder }>(`/api/orders/status/${encodeURIComponent(orderId)}`),
 
-  cancelOrder: (orderId: string) =>
-    req<{ success: boolean }>('/api/orders/cancel', {
+  cancelOrder: (orderId: string, phone?: string) =>
+    req<{ success: boolean; error?: string }>('/api/orders/cancel', {
       method: 'POST',
-      body: JSON.stringify({ orderId }),
+      body: JSON.stringify({ orderId, phone }),
     }),
 
   userOrders: (phone: string) =>

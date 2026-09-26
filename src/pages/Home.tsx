@@ -12,6 +12,7 @@ import { useDeliveryLocation } from '../components/location-context';
 import FoodCard from '../components/FoodCard';
 import FestBanner from '../components/FestBanner';
 import OfferCard from '../components/OfferCard';
+import PremiumHero from '../components/PremiumHero';
 
 const GROCERY_CATS = new Set(['vegetables', 'fruits', 'grocery', 'dairy', 'eggs_meat']);
 
@@ -96,6 +97,7 @@ export default function Home() {
 
   return (
     <div className="page-enter">
+      <PremiumHero />
       <FestBanner />
 
       {user ? (
@@ -104,6 +106,7 @@ export default function Home() {
           <div className="section" style={{ paddingBottom: 10 }}>
             <div className="section-head">
               <div>
+                <span className="px-section-kicker">✦ Handpicked for you</span>
                 <h2>🔥 Today&apos;s Hot <span className="accent-chili">Discounts &amp; Deals</span></h2>
                 <p>Tap any coupon to copy &amp; save big on your order</p>
               </div>
@@ -116,11 +119,11 @@ export default function Home() {
             </div>
           </div>
 
-          {/* ── WHAT'S YOUR MOOD? — hidden for now (restore by removing this false) ── */}
-          {false && (
+          {/* ── WHAT'S YOUR MOOD? ── */}
           <div className="section">
             <div className="section-head">
               <div>
+                <span className="px-section-kicker">✦ Cravings, decoded</span>
                 <h2>What&apos;s your <span className="accent">mood?</span></h2>
                 <p>Six cravings, one neighbourhood — pick yours</p>
               </div>
@@ -143,10 +146,8 @@ export default function Home() {
               ))}
             </div>
           </div>
-          )}
 
-          {/* ── MADE AROUND YOU — hidden for now (restore by removing this false) ── */}
-          {false && (
+          {/* ── MADE AROUND YOU ── */}
           <div className="section">
             <div className="local-band">
               <h2>Made <span className="accent">around you</span></h2>
@@ -175,12 +176,12 @@ export default function Home() {
               </div>
             </div>
           </div>
-          )}
 
           {/* ── POPULAR RIGHT NOW ── */}
           <div className="section">
             <div className="section-head">
               <div>
+                <span className="px-section-kicker">✦ Neighbourhood favourites</span>
                 <h2>Popular <span className="accent">right now</span></h2>
                 <p>Top-rated dishes people around you love</p>
               </div>
@@ -215,6 +216,7 @@ export default function Home() {
           <div className="section" id="grocery">
             <div className="section-head">
               <div>
+                <span className="px-section-kicker">✦ Mandi fresh, 6 AM</span>
                 <h2>Fresh for <span className="accent">your home</span></h2>
                 <p>Vegetables, fruits, dairy &amp; staples — one mela, everything fresh</p>
               </div>
@@ -227,21 +229,7 @@ export default function Home() {
             </div>
           </div>
 
-          {/* ── TODAY'S MELa PICKS (offers) ── */}
-          <div className="section" id="offers">
-            <div className="section-head">
-              <div>
-                <h2>Today&apos;s <span className="accent">picks</span></h2>
-                <p>Local love deals + festival specials</p>
-              </div>
-              <span className="link-more" onClick={() => nav('/offers')}>All offers →</span>
-            </div>
-            <div className="ticket-grid">
-              {PROMO_OFFERS.map((o) => (
-                <OfferCard key={o.code} offer={o} />
-              ))}
-            </div>
-          </div>
+
 
           {/* ── FRESHLY ADDED ── */}
           <div className="section">
@@ -341,43 +329,49 @@ export default function Home() {
         </div>
       </div>
 
-      {/* ── APP BAND — hidden for now (restore by removing this false) ── */}
-      {false && (
+      {/* ── FOODMELA APP & WEBSITE SYNC BAND ── */}
       <div className="section" id="app">
-        <div className="app-band">
+        <div className="app-band" style={{ background: 'linear-gradient(135deg, #094723 0%, #0e9f4e 100%)', color: '#ffffff', padding: '24px', borderRadius: '20px', boxShadow: '0 10px 30px rgba(14, 159, 78, 0.25)' }}>
           <div>
-            <h2>Your favourite food is just a tap away.</h2>
-            <p>Get the FoodMela app for faster ordering, live rider tracking &amp; exclusive app-only deals.</p>
-            <div className="store-row">
-              <a
+            <span style={{ background: '#ffc531', color: '#451a03', fontSize: '11px', fontWeight: 900, padding: '4px 10px', borderRadius: '999px', textTransform: 'uppercase', letterSpacing: '0.6px', display: 'inline-block', marginBottom: '8px' }}>
+              ⚡ 100% REAL-TIME SYNCED
+            </span>
+            <h2 style={{ color: '#ffffff', margin: '6px 0 10px', fontSize: '24px', fontWeight: 900 }}>
+              FoodMela App &amp; Website are 100% Synced! 📱🌐
+            </h2>
+            <p style={{ color: '#e2f5e8', fontSize: '14px', lineHeight: '1.5', marginBottom: '16px' }}>
+              Order on website or app — live tracking, rider assignments, items, and your account sync instantly across all devices.
+            </p>
+            <div className="store-row" style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+              <button
                 className="store-btn"
-                href="https://play.google.com/store/search?q=foodmela&c=apps"
-                target="_blank"
-                rel="noreferrer"
+                onClick={() => nav('/apk')}
+                style={{ background: '#ffffff', color: '#094723', border: 'none', fontWeight: 800, padding: '12px 18px', borderRadius: '12px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px' }}
               >
-                <span className="s-ico" aria-hidden="true">▶️</span>
-                <span><small>GET IT ON</small><strong>Google Play</strong></span>
-              </a>
-              <button className="store-btn" onClick={() => nav(user ? '/grocery' : '/login')}>
-                <span className="s-ico" aria-hidden="true">🌐</span>
-                <span><small>OR CONTINUE ON</small><strong>foodmela.online</strong></span>
+                <span className="s-ico" style={{ fontSize: '20px' }}>📱</span>
+                <span style={{ textAlign: 'left' }}>
+                  <small style={{ display: 'block', fontSize: '10px', textTransform: 'uppercase', opacity: 0.8 }}>Customer App</small>
+                  <strong style={{ fontSize: '14px' }}>Download FoodMela APK</strong>
+                </span>
+              </button>
+              <button
+                className="store-btn"
+                onClick={() => nav('/rider-apk')}
+                style={{ background: 'rgba(255,255,255,0.15)', color: '#ffffff', border: '1.5px solid rgba(255,255,255,0.4)', fontWeight: 800, padding: '12px 18px', borderRadius: '12px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px' }}
+              >
+                <span className="s-ico" style={{ fontSize: '20px' }}>🚴‍♂️</span>
+                <span style={{ textAlign: 'left' }}>
+                  <small style={{ display: 'block', fontSize: '10px', textTransform: 'uppercase', color: '#ffc531' }}>Delivery Partner</small>
+                  <strong style={{ fontSize: '14px' }}>Download Rider App</strong>
+                </span>
               </button>
             </div>
-            <div className="qr-hint">📱 Android app available — search “FoodMela” on Google Play.</div>
-          </div>
-          <div className="phone-mock" aria-hidden="true">
-            <div className="pm-notch" />
-            <div className="pm-screen">
-              <img
-                src="https://images.unsplash.com/photo-1565299624946-b28f40a0ae38?w=460&h=820&fit=crop"
-                alt=""
-                loading="lazy"
-              />
+            <div className="qr-hint" style={{ marginTop: '12px', fontSize: '12px', color: '#d1fae5' }}>
+              ✓ Same phone number login &nbsp;|&nbsp; Live order status on website &amp; app
             </div>
           </div>
         </div>
       </div>
-      )}
     </div>
   );
 }

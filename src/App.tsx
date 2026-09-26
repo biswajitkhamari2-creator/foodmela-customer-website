@@ -1,4 +1,6 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { doc, onSnapshot } from 'firebase/firestore';
+import { db } from './firebase';
 import { BrowserRouter, Routes, Route, useNavigate, useLocation, Navigate } from 'react-router-dom';
 import { ShopProvider, useShop } from './store';
 import { DeliveryLocationProvider } from './components/location-context';
@@ -12,9 +14,27 @@ import Offers from './pages/Offers';
 import Info from './pages/Info';
 import Login from './pages/Login';
 import Apk from './pages/Apk';
+import RiderApk from './pages/RiderApk';
 import Orders from './pages/Orders';
 import Track from './pages/Track';
 import Profile from './pages/Profile';
+import Maintenance from './pages/Maintenance';
+
+// 🛠️ Maintenance mode — Firestore: app_settings/maintenance { enabled, eta }.
+// Admin panel ke Settings page se live toggle hota hai, deploy ki zarurat nahi.
+function useMaintenance() {
+  const [state, setState] = useState({ enabled: false, eta: '30 min' });
+  useEffect(() => {
+    const unsub = onSnapshot(doc(db, 'app_settings', 'maintenance'), (snap) => {
+      if (snap.exists()) {
+        const d = snap.data();
+        setState({ enabled: d.enabled === true, eta: d.eta || '30 min' });
+      }
+    });
+    return () => unsub();
+  }, []);
+  return state;
+}
 
 // Routes, providers, cart state, auth flow — all unchanged.
 // Only the chrome (top strip, footer, bottom nav, location modal) is new.
@@ -51,6 +71,7 @@ function Shell() {
           <Route path="/page/:slug" element={<Info />} />
           <Route path="/login" element={<Login />} />
           <Route path="/apk" element={<Apk />} />
+          <Route path="/rider-apk" element={<RiderApk />} />
           <Route path="/orders" element={user ? <Orders /> : <Navigate to="/login" replace />} />
           <Route path="/track/:orderId" element={<Track />} />
           <Route path="/profile" element={<Profile />} />
@@ -85,6 +106,10 @@ function Shell() {
 }
 
 export default function App() {
+  const { enabled, eta } = useMaintenance();
+  if (enabled) {
+    return <Maintenance eta={eta} />;
+  }
   return (
     <BrowserRouter>
       <ShopProvider>

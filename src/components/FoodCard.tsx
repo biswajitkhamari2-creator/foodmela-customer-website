@@ -1,5 +1,7 @@
+import type { Ref } from 'react';
 import { useShop } from '../store';
 import { ITEM_DESCRIPTIONS, pushSeen, type CatalogItem } from '../data/catalog';
+import { useTilt } from '../hooks/useTilt';
 
 // Presentation-only delivery hints per category (frontend copy, not backend data).
 const ETA: Record<string, string> = {
@@ -32,9 +34,15 @@ export default function FoodCard({ item }: { item: CatalogItem }) {
     pushSeen(item.id);
     addToCart(item.id);
   };
+  const tilt = useTilt<HTMLElement>(7);
 
   return (
-    <article className="thali">
+    <article
+      className="thali tilt-glare"
+      ref={tilt.ref as unknown as Ref<HTMLElement>}
+      onMouseMove={tilt.onMouseMove}
+      onMouseLeave={tilt.onMouseLeave}
+    >
       <div className="thali-plate">
         <img src={item.image} alt={item.name} loading="lazy" />
         <span

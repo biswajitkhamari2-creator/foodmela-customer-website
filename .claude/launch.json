@@ -2,10 +2,11 @@
   "version": "0.0.1",
   "configurations": [
     {
-      "name": "customer-site",
-      "runtimeExecutable": "npm",
-      "runtimeArgs": ["run", "dev", "--", "--port", "5173"],
-      "port": 5173
+      "name": "live-track",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": ["vite", "preview", "--port", "4180", "--host"],
+      "url": "https://foodmela.online/track/FM-5980",
+      "port": 4180
     }
   ]
 }

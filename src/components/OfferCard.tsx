@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import type { PromoOffer } from '../data/catalog';
+import { useTilt } from '../hooks/useTilt';
 
 const THEME: Record<PromoOffer['theme'], string> = {
   'offer-green': 'ticket-green',
@@ -11,6 +12,7 @@ const THEME: Record<PromoOffer['theme'], string> = {
 /** Mela ticket — perforated-stub offer card with tap-to-copy */
 export default function OfferCard({ offer }: { offer: PromoOffer }) {
   const [copied, setCopied] = useState(false);
+  const tilt = useTilt<HTMLDivElement>(8);
 
   const handleCopy = () => {
     try {
@@ -24,7 +26,10 @@ export default function OfferCard({ offer }: { offer: PromoOffer }) {
 
   return (
     <div
-      className={`ticket ${THEME[offer.theme]}`}
+      className={`ticket tilt-glare ${THEME[offer.theme]}`}
+      ref={tilt.ref}
+      onMouseMove={tilt.onMouseMove}
+      onMouseLeave={tilt.onMouseLeave}
       role="article"
       aria-label={`${offer.title} — code ${offer.code}`}
       onClick={handleCopy}

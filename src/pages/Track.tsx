@@ -154,10 +154,11 @@ export default function Track() {
     setCancelling(true);
     setErr('');
     try {
-      const res = await api.cancelOrder(orderId).catch((e: unknown) => {
+      const phoneToPass = order?.phone || order?.customerPhone;
+      const res = await api.cancelOrder(orderId, phoneToPass).catch((e: unknown) => {
         throw e instanceof Error ? e : new Error('Cancel failed');
       });
-      if (!res.success) throw new Error('Cancel failed');
+      if (!res || !res.success) throw new Error(res?.error || 'Cancel failed');
       try {
         await updateDoc(doc(db, 'orders', cleanOrderId), {
           stage: -1,
@@ -168,13 +169,13 @@ export default function Track() {
       } catch { /* backend mirror handled it */ }
       setOrder((prev) => (prev ? { ...prev, stage: -1, status: 'Cancelled by Customer' } : prev));
       setShowCancelModal(false);
-    } catch (e) {
+    } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : '';
       setErr(
         msg.includes('Too late') ? 'Too late to cancel — rider is already assigned or 2-minute limit expired. Call 8144503650 for assistance.'
         : msg.includes('Not your order') ? 'This order belongs to another phone number.'
         : msg.includes('Session expired') ? 'Session expired. Please log in again.'
-        : 'Could not cancel order. Please check your internet or call 8144503650.',
+        : msg || 'Could not cancel order. Please check your internet or call 8144503650.',
       );
     } finally {
       setCancelling(false);

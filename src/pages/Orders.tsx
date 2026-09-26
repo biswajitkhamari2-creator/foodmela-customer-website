@@ -148,13 +148,13 @@ export default function Orders() {
     const seen = new Set<string>();
     const list: UnifiedOrder[] = [];
     for (const o of fsOrders) {
-      const oid = o.orderId ?? o.id;
+      const oid = (o.orderId?.trim() ? o.orderId : o.id)?.trim();
       if (!oid || seen.has(oid)) continue;
       seen.add(oid);
       list.push({ ...o, oid, source: 'app', createdMs: toMs(o.createdAt) });
     }
     for (const o of backendOrders) {
-      const oid = o.orderId ?? o.id;
+      const oid = (o.orderId?.trim() ? o.orderId : o.id)?.trim();
       if (!oid || seen.has(oid)) continue;
       seen.add(oid);
       list.push({ ...o, oid, source: 'website', createdMs: toMs((o.createdAt ?? o.placedAt ?? o.timestamp) as FsOrder['createdAt']) });
@@ -167,12 +167,16 @@ export default function Orders() {
   const past = orders.filter((o) => { const s = stageOf(o); return s === 3 || s === -1; });
   const shown = tab === 'active' ? active : past;
 
-  const cancelOrder = async (oid: string) => {
+  const cancelOrder = async (oid: string, orderPhone?: string) => {
     if (!confirm('Cancel this order?')) return;
     setCancelling(oid);
     try {
       // Backend first (Redis + history), Firestore mirror best-effort
-      await api.cancelOrder(oid).catch(() => null);
+      const res = await api.cancelOrder(oid, orderPhone || user?.phone);
+      if (res && res.error) {
+        alert(res.error);
+        return;
+      }
       try {
         const { doc, updateDoc, serverTimestamp } = await import('firebase/firestore');
         await updateDoc(doc(db, 'orders', oid), {
@@ -181,6 +185,14 @@ export default function Orders() {
           cancelledAt: serverTimestamp(),
         });
       } catch { /* backend already handled it */ }
+      setBackendOrders((prev) =>
+        prev.map((o) => ((o.id === oid || o.orderId === oid) ? { ...o, stage: -1, status: 'Cancelled by Customer' } : o))
+      );
+      setFsOrders((prev) =>
+        prev.map((o) => ((o.id === oid || o.orderId === oid) ? { ...o, stage: -1, status: 'Cancelled by Customer' } : o))
+      );
+    } catch (e: unknown) {
+      alert(e instanceof Error ? e.message : 'Failed to cancel order');
     } finally {
       setCancelling(null);
     }

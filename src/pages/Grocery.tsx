@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { CATEGORIES, GROCERY_AISLES } from '../data/catalog';
+import { GROCERY_AISLES } from '../data/catalog';
 import { useShop } from '../store';
 import FoodCard from '../components/FoodCard';
 
@@ -23,7 +23,6 @@ export default function Grocery() {
     });
   }, [cat, q, groceryItems]);
 
-  const cats = CATEGORIES.filter((c) => c.key === 'all' || GROCERY_CATS.has(c.key));
 
   return (
     <div className="page-enter">
@@ -60,13 +59,7 @@ export default function Grocery() {
             />
           </div>
         </div>
-        <div className="cat-row">
-          {cats.map((c) => (
-            <button key={c.key} className={`cat-chip ${cat === c.key ? 'on' : ''}`} onClick={() => setCat(c.key)}>
-              {c.icon} {c.label}
-            </button>
-          ))}
-        </div>
+
         <p style={{ fontSize: 13, color: '#66707D', marginBottom: 14 }}>{items.length} products</p>
         {items.length === 0 ? (
           <div className="mela-empty">
