@@ -1,5 +1,8 @@
 {
-  "rewrites": [{ "source": "/(.*)", "destination": "/index.html" }],
+  "rewrites": [
+    { "source": "/api/:path*", "destination": "https://food-mela-backend.vercel.app/api/:path*" },
+    { "source": "/(.*)", "destination": "/index.html" }
+  ],
   "build": {
     "env": {
       "VITE_BACKEND_URL": "https://foodmela.online"
