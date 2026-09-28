@@ -3,7 +3,11 @@ import { db } from '../firebase';
 import { collection, doc, setDoc, getDocs, query, where, orderBy, serverTimestamp, onSnapshot } from 'firebase/firestore';
 
 // Centralised configuration for Food Mela Backend API
-const BASE_URL = (import.meta.env.VITE_BACKEND_URL || import.meta.env.VITE_API_BASE_URL || 'https://food-mela-backend.vercel.app').replace(/\/$/, '');
+const BASE_URL = (
+  import.meta.env.VITE_BACKEND_URL ||
+  import.meta.env.VITE_API_BASE_URL ||
+  (typeof window !== 'undefined' && window.location.origin.includes('foodmela') ? window.location.origin : 'https://foodmela.online')
+).replace(/\/$/, '');
 
 // ══════════════════════════════════════════════════════════════════════════
 // OFFICIAL 24 PRODUCTS STRICTLY FROM FOODMELA.ONLINE & BACKEND
