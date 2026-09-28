@@ -1,6 +1,6 @@
 import React from 'react';
 import { useApp, playNotificationSound } from '../context/AppContext';
-import { UtensilsCrossed, Carrot, Apple, ShoppingCart, Milk, Egg, ChefHat, Flame, Candy, Coffee } from 'lucide-react';
+import { ChefHat, ShoppingBasket, Soup, UtensilsCrossed, Candy, Pizza, Coffee } from 'lucide-react';
 
 interface CategoryConfig {
   name: string;
@@ -15,63 +15,45 @@ export default function CategoryBubbles() {
   const categoriesList: CategoryConfig[] = [
     {
       name: 'All',
-      label: 'All Products',
+      label: 'All Delicacies',
       icon: <UtensilsCrossed className="w-4 h-4" />,
       color: 'from-orange-500 to-amber-500',
     },
     {
-      name: 'Vegetables',
-      label: 'Vegetables',
-      icon: <Carrot className="w-4 h-4" />,
-      color: 'from-emerald-600 to-green-500',
-    },
-    {
-      name: 'Fruits',
-      label: 'Fruits',
-      icon: <Apple className="w-4 h-4" />,
-      color: 'from-rose-500 to-red-500',
-    },
-    {
-      name: 'Grocery',
-      label: 'Grocery',
-      icon: <ShoppingCart className="w-4 h-4" />,
-      color: 'from-amber-600 to-yellow-500',
-    },
-    {
-      name: 'Dairy',
-      label: 'Dairy',
-      icon: <Milk className="w-4 h-4" />,
-      color: 'from-sky-500 to-blue-500',
-    },
-    {
-      name: 'Eggs & Meat',
-      label: 'Eggs & Meat',
-      icon: <Egg className="w-4 h-4" />,
-      color: 'from-amber-700 to-red-600',
-    },
-    {
-      name: 'Cooked Food',
-      label: 'Cooked Food',
+      name: 'Biryani',
+      label: 'Royal Biryani',
       icon: <ChefHat className="w-4 h-4" />,
-      color: 'from-orange-600 to-amber-600',
+      color: 'from-amber-600 to-red-600',
     },
     {
-      name: 'Non-Veg',
-      label: 'Non-Veg',
-      icon: <Flame className="w-4 h-4" />,
-      color: 'from-red-600 to-rose-600',
+      name: 'North Indian',
+      label: 'North Indian',
+      icon: <Soup className="w-4 h-4" />,
+      color: 'from-orange-500 to-red-500',
     },
     {
-      name: 'Sweets',
-      label: 'Sweets',
+      name: 'Sweets & Mithai',
+      label: 'Sweets & Mithai',
       icon: <Candy className="w-4 h-4" />,
-      color: 'from-pink-500 to-rose-400',
+      color: 'from-pink-500 to-rose-500',
     },
     {
-      name: 'Snacks',
-      label: 'Snacks',
+      name: 'Street Food',
+      label: 'Street Food',
+      icon: <Pizza className="w-4 h-4" />,
+      color: 'from-yellow-500 to-orange-600',
+    },
+    {
+      name: 'Groceries',
+      label: 'Groceries',
+      icon: <ShoppingBasket className="w-4 h-4" />,
+      color: 'from-emerald-600 to-teal-500',
+    },
+    {
+      name: 'Beverages',
+      label: 'Beverages',
       icon: <Coffee className="w-4 h-4" />,
-      color: 'from-yellow-600 to-amber-600',
+      color: 'from-amber-400 to-orange-500',
     },
   ];
 
@@ -84,7 +66,7 @@ export default function CategoryBubbles() {
     <div className="w-full space-y-3">
       <div className="flex items-center justify-between px-1">
         <h3 className="text-sm font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest">
-          foodmela.online Categories
+          Explore Festivals & Categories
         </h3>
         <span className="text-xs text-orange-500 font-bold dark:text-orange-400">
           Scroll to view all

@@ -1,19 +1,20 @@
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import React, { createContext, useContext, useState, useEffect } from 'react';
 import { CatalogItem, CartItem, Coupon, Order, UserProfile, SelectedCustomization } from '../types';
 import { apiClient } from '../api/apiClient';
 
-// Premium Audio Synthesis for App Sound Effects
+// Premium Audio Synthesis for App Sound Effects (Haptic UI Dings & Order Success Chimes)
 export const playNotificationSound = (type: 'success' | 'click' | 'remove') => {
   try {
     const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
     const now = ctx.currentTime;
 
     if (type === 'success') {
+      // Elegant dual-bell gourmet chime
       const osc1 = ctx.createOscillator();
       const gain1 = ctx.createGain();
       osc1.type = 'sine';
-      osc1.frequency.setValueAtTime(523.25, now);
-      osc1.frequency.exponentialRampToValueAtTime(783.99, now + 0.15);
+      osc1.frequency.setValueAtTime(523.25, now); // C5
+      osc1.frequency.exponentialRampToValueAtTime(783.99, now + 0.15); // G5
       gain1.gain.setValueAtTime(0.15, now);
       gain1.gain.exponentialRampToValueAtTime(0.01, now + 0.5);
       osc1.connect(gain1);
@@ -24,8 +25,8 @@ export const playNotificationSound = (type: 'success' | 'click' | 'remove') => {
       const osc2 = ctx.createOscillator();
       const gain2 = ctx.createGain();
       osc2.type = 'sine';
-      osc2.frequency.setValueAtTime(659.25, now + 0.08);
-      osc2.frequency.exponentialRampToValueAtTime(1046.50, now + 0.23);
+      osc2.frequency.setValueAtTime(659.25, now + 0.08); // E5
+      osc2.frequency.exponentialRampToValueAtTime(1046.50, now + 0.23); // C6
       gain2.gain.setValueAtTime(0.12, now + 0.08);
       gain2.gain.exponentialRampToValueAtTime(0.01, now + 0.6);
       osc2.connect(gain2);
@@ -33,6 +34,7 @@ export const playNotificationSound = (type: 'success' | 'click' | 'remove') => {
       osc2.start(now + 0.08);
       osc2.stop(now + 0.6);
     } else if (type === 'click') {
+      // Light tactile click
       const osc = ctx.createOscillator();
       const gain = ctx.createGain();
       osc.type = 'sine';
@@ -45,6 +47,7 @@ export const playNotificationSound = (type: 'success' | 'click' | 'remove') => {
       osc.start(now);
       osc.stop(now + 0.08);
     } else if (type === 'remove') {
+      // Muted drop click
       const osc = ctx.createOscillator();
       const gain = ctx.createGain();
       osc.type = 'triangle';
@@ -58,7 +61,7 @@ export const playNotificationSound = (type: 'success' | 'click' | 'remove') => {
       osc.stop(now + 0.12);
     }
   } catch (e) {
-    console.warn('AudioContext pending user interaction', e);
+    console.warn('Browser AudioContext blocked until user interaction occurs', e);
   }
 };
 
@@ -108,8 +111,6 @@ interface AppContextType {
   user: UserProfile | null;
   showLoginModal: boolean;
   setShowLoginModal: (show: boolean) => void;
-  loginWithPhoneEmail: (userJsonUrl: string) => Promise<{ success: boolean; message?: string }>;
-  loginWithPhone: (phone: string, otp: string) => Promise<{ success: boolean; message?: string }>;
   login: (phone: string, otp: string) => Promise<{ success: boolean; message?: string }>;
   logout: () => void;
   toggleGoldClub: () => void;
@@ -127,20 +128,19 @@ interface AppContextType {
   setActiveOrder: (o: Order | null) => void;
   pastOrders: Order[];
   placeOrder: (paymentMethod: string) => Promise<boolean>;
+  reorder: (order: Order) => void;
+
   // Customization Modal
   customizingItem: CatalogItem | null;
   setCustomizingItem: (item: CatalogItem | null) => void;
   cartDrawerOpen: boolean;
   setCartDrawerOpen: (open: boolean) => void;
-
-  // Policy Modal
-  selectedPolicy: string | null;
-  setSelectedPolicy: (policy: string | null) => void;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  // Load initial states from LocalStorage
   const [darkMode, setDarkMode] = useState<boolean>(() => {
     return localStorage.getItem('foodmela_dark') === 'true';
   });
@@ -156,7 +156,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   });
 
   const [currentLocation, setCurrentLocation] = useState<string>(() => {
-    return localStorage.getItem('foodmela_location') || 'Birmaharajpur, Subarnapur, Odisha';
+    return localStorage.getItem('foodmela_location') || 'Indiranagar, Bengaluru';
   });
 
   const [activeOrder, setActiveOrder] = useState<Order | null>(null);
@@ -169,7 +169,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [couponError, setCouponError] = useState<string | null>(null);
   const [customizingItem, setCustomizingItem] = useState<CatalogItem | null>(null);
   const [cartDrawerOpen, setCartDrawerOpen] = useState(false);
-  const [selectedPolicy, setSelectedPolicy] = useState<string | null>(null);
 
   // Catalog State
   const [catalog, setCatalog] = useState<CatalogItem[]>([]);
@@ -211,188 +210,16 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     localStorage.setItem('foodmela_cart', JSON.stringify(cart));
   }, [cart]);
 
-  // Sample Past Orders Generator (used ONLY if no orders are available)
-  // Sample Past Orders Generator (used ONLY if no orders are available)
-  const getSampleOrders = (): Order[] => {
-    const now = Date.now();
-    return [
-      {
-        id: 'FM-984210',
-        items: [
-          {
-            id: 'sample_item_1',
-            item: {
-              id: 'cf1',
-              name: 'Chicken Biryani',
-              category: 'Cooked Food',
-              categoryLabel: 'Cooked Food',
-              price: 220,
-              originalPrice: 260,
-              rating: 4.8,
-              ratingCount: 3200,
-              prepTime: '25 min',
-              isVeg: false,
-              isBestseller: true,
-              description: 'Fragrant dum-style biryani with tender chicken pieces.',
-              imageFallbackGradient: 'from-amber-600 via-orange-600 to-red-600',
-              image: 'https://images.unsplash.com/photo-1563379091339-03b21ab4a4f8?w=600&h=400&fit=crop',
-              type: 'food',
-              unit: '1 Plate',
-              restaurant: 'Food Mela Kitchen',
-            },
-            quantity: 2,
-            selectedCustomizations: [],
-          },
-          {
-            id: 'sample_item_2',
-            item: {
-              id: 'sw1',
-              name: 'Rasgulla (6 pcs)',
-              category: 'Sweets',
-              categoryLabel: 'Sweets',
-              price: 80,
-              originalPrice: 100,
-              rating: 4.7,
-              ratingCount: 3400,
-              prepTime: '5 min',
-              isVeg: true,
-              isBestseller: true,
-              description: 'Spongy, syrupy — the pride of Odisha & Bengal.',
-              imageFallbackGradient: 'from-amber-200 via-yellow-300 to-amber-400',
-              image: 'https://images.unsplash.com/photo-1601303516534-61dcef5bc3c5?w=600&h=400&fit=crop',
-              type: 'food',
-              unit: '6 pcs',
-              restaurant: 'Food Mela Sweets',
-            },
-            quantity: 1,
-            selectedCustomizations: [],
-          },
-        ],
-        status: 'delivered',
-        statusTimestamps: {
-          placed: new Date(now - 86400000 * 2).toISOString(),
-          preparing: new Date(now - 86400000 * 2 + 300000).toISOString(),
-          rider_assigned: new Date(now - 86400000 * 2 + 600000).toISOString(),
-          out_for_delivery: new Date(now - 86400000 * 2 + 900000).toISOString(),
-          delivered: new Date(now - 86400000 * 2 + 1800000).toISOString(),
-        },
-        itemTotal: 520,
-        deliveryFee: 0,
-        taxes: 26,
-        platformFee: 0,
-        discountAmount: 50,
-        totalAmount: 496,
-        deliveryAddress: 'Main Road, Birmaharajpur, Odisha',
-        paymentMethod: 'UPI / Online Payment',
-        rider: {
-          name: 'Rahul Kumar',
-          phone: '+91 98765 43210',
-          vehicleNumber: 'OD 15 HA 8842',
-          avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&h=100&fit=crop&crop=face',
-          pin: '4821',
-          lat: 0.5,
-          lng: 0.5,
-        },
-        createdAt: new Date(now - 86400000 * 2).toISOString(),
-      },
-      {
-        id: 'FM-751930',
-        items: [
-          {
-            id: 'sample_item_3',
-            item: {
-              id: 'vg1',
-              name: 'Fresh Tomato',
-              category: 'Vegetables',
-              categoryLabel: 'Vegetables',
-              price: 40,
-              originalPrice: 50,
-              rating: 4.6,
-              ratingCount: 1420,
-              prepTime: '15 min',
-              isVeg: true,
-              isBestseller: true,
-              description: 'Firm, ripe tomatoes for curries & salads.',
-              imageFallbackGradient: 'from-red-600 via-rose-500 to-amber-500',
-              image: 'https://images.unsplash.com/photo-1546470427-e26264be0b0d?w=600&h=400&fit=crop',
-              type: 'grocery',
-              unit: '1 kg',
-              restaurant: 'Fresh Sabzi Mandi',
-            },
-            quantity: 2,
-            selectedCustomizations: [],
-          },
-          {
-            id: 'sample_item_4',
-            item: {
-              id: 'gr1',
-              name: 'Basmati Rice (India Gate)',
-              category: 'Grocery',
-              categoryLabel: 'Grocery',
-              price: 180,
-              originalPrice: 220,
-              rating: 4.7,
-              ratingCount: 2400,
-              prepTime: '15 min',
-              isVeg: true,
-              isBestseller: true,
-              description: 'Long-grain basmati for perfect pulao.',
-              imageFallbackGradient: 'from-amber-200 via-yellow-100 to-amber-300',
-              image: 'https://images.unsplash.com/photo-1586201375761-83865001e31c?w=600&h=400&fit=crop',
-              type: 'grocery',
-              unit: '1 kg',
-              restaurant: 'Daily Grocery Store',
-            },
-            quantity: 1,
-            selectedCustomizations: [],
-          },
-        ],
-        status: 'delivered',
-        statusTimestamps: {
-          placed: new Date(now - 86400000 * 5).toISOString(),
-          preparing: new Date(now - 86400000 * 5 + 300000).toISOString(),
-          rider_assigned: new Date(now - 86400000 * 5 + 600000).toISOString(),
-          out_for_delivery: new Date(now - 86400000 * 5 + 900000).toISOString(),
-          delivered: new Date(now - 86400000 * 5 + 1800000).toISOString(),
-        },
-        itemTotal: 260,
-        deliveryFee: 39,
-        taxes: 13,
-        platformFee: 5,
-        discountAmount: 0,
-        totalAmount: 317,
-        deliveryAddress: 'Main Road, Birmaharajpur, Odisha',
-        paymentMethod: 'Cash on Delivery (COD)',
-        rider: {
-          name: 'Santosh Jena',
-          phone: '+91 98123 45678',
-          vehicleNumber: 'OD 15 AB 1234',
-          avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100&h=100&fit=crop&crop=face',
-          pin: '1920',
-          lat: 0.5,
-          lng: 0.5,
-        },
-        createdAt: new Date(now - 86400000 * 5).toISOString(),
-      },
-    ];
-  };
-
-  // Sync User to LocalStorage and fetch server orders
+  // Sync User to LocalStorage
   useEffect(() => {
     if (user) {
       localStorage.setItem('foodmela_user', JSON.stringify(user));
-      // Load real orders from backend
-      apiClient.getUserOrders(user.phone).then((serverOrders) => {
-        if (serverOrders.length > 0) {
-          setPastOrders(serverOrders);
-        }
-      });
     } else {
       localStorage.removeItem('foodmela_user');
     }
   }, [user]);
 
-  // Load Past & Active Orders on start (Add sample history ONLY if not available)
+  // Load Past & Active Orders on start
   useEffect(() => {
     const loadOrders = () => {
       const past: Order[] = [];
@@ -405,6 +232,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             const order = JSON.parse(localStorage.getItem(key)!) as Order;
             if (order.id === activeId) {
               setActiveOrder(order);
+              // Re-start simulation if it is currently active
               if (order.status !== 'delivered') {
                 apiClient.startLocalRiderSimulation(order.id);
               }
@@ -417,15 +245,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         }
       }
       
-      // If and only if no orders are available, provide realistic sample past orders
-      if (past.length === 0 && !activeId) {
-        const samples = getSampleOrders();
-        samples.forEach((sample) => {
-          localStorage.setItem(`foodmela_order_${sample.id}`, JSON.stringify(sample));
-        });
-        past.push(...samples);
-      }
-
+      // Sort past orders by creation time descending
       past.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
       setPastOrders(past);
     };
@@ -433,7 +253,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     loadOrders();
   }, []);
 
-  // Listen to order updates from backend simulation
+  // Listen to order updates from the background simulation
   useEffect(() => {
     const handleOrderUpdate = (event: Event) => {
       const updatedOrder = (event as CustomEvent).detail.order as Order;
@@ -442,7 +262,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       if (updatedOrder.id === activeId) {
         setActiveOrder(updatedOrder);
         if (updatedOrder.status === 'delivered') {
+          // Play chime when driver arrives!
           playNotificationSound('success');
+          // Update past orders list
           setPastOrders((prev) => [updatedOrder, ...prev]);
         }
       }
@@ -460,11 +282,18 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const itemCount = cart.reduce((sum, item) => sum + item.quantity, 0);
 
+  // Checkout pricing model based on user and club configurations
+  // 1. Delivery Fee: ₹39 (Free for Gold Club Members or orders > ₹499)
   const isGold = user?.isGoldMember || false;
   const deliveryFee = (isGold || cartTotal > 499) ? 0 : 39;
-  const platformFee = isGold ? 0 : 5;
-  const taxes = Math.round(cartTotal * 0.05);
 
+  // 2. Platform Fee: Fixed flat ₹5 (discounted to ₹0 for gold)
+  const platformFee = isGold ? 0 : 5;
+
+  // 3. Taxes and Restaurant GST: 18% of cart total
+  const taxes = Math.round(cartTotal * 0.05); // 5% GST for standard Indian food delivery
+
+  // 4. Coupon discount
   let discountAmount = 0;
   if (appliedCoupon) {
     if (appliedCoupon.discountType === 'percentage') {
@@ -475,6 +304,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   }
 
+  // Double check minimum thresholds
   useEffect(() => {
     if (appliedCoupon && cartTotal < appliedCoupon.minOrderValue) {
       setAppliedCoupon(null);
@@ -482,9 +312,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   }, [cartTotal, appliedCoupon]);
 
-  const goldSavings = isGold ? Math.round(cartTotal * 0.15) : 0;
+  // 5. Grand Total (Gold club member automatically gets an extra 20% flat food discount if no coupon, or combined)
+  const goldSavings = isGold ? Math.round(cartTotal * 0.15) : 0; // Flat 15% off menu items for gold
   const grandTotal = Math.max(0, cartTotal + deliveryFee + taxes + platformFee - discountAmount - goldSavings);
 
+  // Cart Handlers
   const addToCart = (
     item: CatalogItem,
     selectedCustomizations: SelectedCustomization[] = [],
@@ -492,6 +324,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   ) => {
     playNotificationSound('click');
     setCart((prevCart) => {
+      // Generate unique cart item key from customizations to handle duplicate items with different options separately
       const customKey = [
         item.id,
         ...selectedCustomizations.map((c) => `${c.optionName}:${c.choiceName}`).sort()
@@ -549,6 +382,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setAppliedCoupon(null);
   };
 
+  // Coupon apply
   const applyCoupon = async (code: string): Promise<boolean> => {
     setCouponError(null);
     const res = await apiClient.applyCoupon(code, cartTotal);
@@ -567,20 +401,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setCouponError(null);
   };
 
-  // Auth: Official Phone.Email verification
-  const loginWithPhoneEmail = useCallback(async (userJsonUrl: string) => {
-    const res = await apiClient.verifyPhoneEmail(userJsonUrl);
-    if (res.success && res.profile) {
-      setUser(res.profile);
-      setShowLoginModal(false);
-      playNotificationSound('success');
-      return { success: true };
-    }
-    return { success: false, message: res.error || 'Verification failed.' };
-  }, []);
-
-  // Auth: Phone/OTP direct
-  const loginWithPhone = useCallback(async (phone: string, otp: string) => {
+  // Auth Handlers
+  const login = async (phone: string, otp: string) => {
     const res = await apiClient.verifyOTP(phone, otp);
     if (res.success && res.profile) {
       setUser(res.profile);
@@ -589,14 +411,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       return { success: true };
     }
     return { success: false, message: res.message };
-  }, []);
-
-  const login = loginWithPhone;
+  };
 
   const logout = () => {
     setUser(null);
     localStorage.removeItem('foodmela_user');
-    localStorage.removeItem('fm_api_token');
+    // Clear active order references too if any
     localStorage.removeItem('foodmela_active_order_id');
     setActiveOrder(null);
   };
@@ -611,9 +431,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     playNotificationSound('success');
   };
 
+  // Create active order
   const placeOrder = async (paymentMethod: string): Promise<boolean> => {
     if (cart.length === 0) return false;
 
+    // Force login if guest
     if (!user) {
       setShowLoginModal(true);
       return false;
@@ -627,7 +449,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       platformFee,
       discountAmount: discountAmount + (isGold ? goldSavings : 0),
       totalAmount: grandTotal,
-      deliveryAddress: user.savedAddresses[0]?.addressLine || currentLocation || 'Indiranagar, Bengaluru',
+      deliveryAddress: user.savedAddresses[0]?.addressLine || 'Indiranagar, Bengaluru',
       paymentMethod,
     };
 
@@ -636,7 +458,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       playNotificationSound('success');
       setActiveOrder(res.order);
       clearCart();
-      setActiveTab('orders');
+      setActiveTab('orders'); // Jump to live tracker
       return true;
     }
     return false;
@@ -685,8 +507,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         user,
         showLoginModal,
         setShowLoginModal,
-        loginWithPhoneEmail,
-        loginWithPhone,
         login,
         logout,
         toggleGoldClub,
@@ -703,8 +523,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         setCustomizingItem,
         cartDrawerOpen,
         setCartDrawerOpen,
-        selectedPolicy,
-        setSelectedPolicy,
       }}
     >
       {children}

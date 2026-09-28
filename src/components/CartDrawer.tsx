@@ -1,523 +1,447 @@
-import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { api } from '../api';
-import { useShop } from '../store';
+import React, { useState } from 'react';
+import { useApp, playNotificationSound } from '../context/AppContext';
+import { X, Trash2, Tag, Percent, MapPin, CreditCard, ChevronRight, CheckCircle, Gift, Loader2 } from 'lucide-react';
 
-// UI-only reskin. Cart math, delivery-fee rule, placeOrder payload,
-// backend endpoint + Firestore mirror (inside api.placeOrder) — untouched.
-const FREE_DELIVERY_OVER = 299;
-const DELIVERY_FEE = 39;
-// Platform fee (₹7) — charged to the customer on every non-empty order,
-// shown as its own bill row and included in the placed totalAmount.
-const PLATFORM_FEE = 7;
+export default function CartDrawer() {
+  const {
+    cart,
+    cartDrawerOpen,
+    setCartDrawerOpen,
+    removeFromCart,
+    updateQuantity,
+    cartTotal,
+    deliveryFee,
+    taxes,
+    platformFee,
+    discountAmount,
+    grandTotal,
+    appliedCoupon,
+    couponError,
+    applyCoupon,
+    removeCoupon,
+    user,
+    setShowLoginModal,
+    placeOrder,
+  } = useApp();
 
-// Special discount coupons (₹50, ₹60, ₹70)
-const COUPONS = [
-  { code: 'MEGA70', discount: 70, minOrder: 220, label: 'Mega Feast ₹70 OFF' },
-  { code: 'FEAST60', discount: 60, minOrder: 160, label: 'Special Treat ₹60 OFF' },
-  { code: 'MELA50', discount: 50, minOrder: 100, label: 'Mela Welcome ₹50 OFF' },
-] as const;
+  const [couponInput, setCouponInput] = useState('');
+  const [selectedAddressId, setSelectedAddressId] = useState('addr_1');
+  const [paymentMethod, setPaymentMethod] = useState('UPI');
+  const [isPlacing, setIsPlacing] = useState(false);
+  const [checkoutStep, setCheckoutStep] = useState<'cart' | 'checkout'>('cart');
 
-export default function CartDrawer({ open, onClose }: { open: boolean; onClose: () => void }) {
-  const { cart, addToCart, removeFromCart, clearCart, priceOf, mrpOf, cartTotal, cartCount, user, allItems } = useShop();
-  const nav = useNavigate();
-  const [address, setAddress] = useState('');
-  const [paymentMode, setPaymentMode] = useState<'cod' | 'prepaid'>('prepaid');
-  const [selectedCouponCode, setSelectedCouponCode] = useState<string | null>(null);
-  const [placing, setPlacing] = useState(false);
-  const [err, setErr] = useState('');
+  if (!cartDrawerOpen) return null;
 
-  if (!open) return null;
-
-  const lines = [...cart.entries()]
-    .map(([id, qty]) => ({ item: allItems.find((c) => c.id === id)!, qty }))
-    .filter((l) => l.item);
-
-  const mrpTotal = lines.reduce((s, l) => {
-    const mrp = mrpOf(l.item);
-    return s + (mrp ?? priceOf(l.item)) * l.qty;
-  }, 0);
-  const savings = Math.max(0, mrpTotal - cartTotal);
-  const deliveryFee = cartTotal >= FREE_DELIVERY_OVER || cartTotal === 0 ? 0 : DELIVERY_FEE;
-  const platformFee = cartTotal === 0 ? 0 : PLATFORM_FEE;
-
-  // Best eligible coupon based on cartTotal
-  const bestEligibleCoupon = COUPONS.find((c) => cartTotal >= c.minOrder) || null;
-  const effectiveCoupon =
-    selectedCouponCode === 'NONE'
-      ? null
-      : selectedCouponCode
-      ? COUPONS.find((c) => c.code === selectedCouponCode && cartTotal >= c.minOrder) ?? bestEligibleCoupon
-      : bestEligibleCoupon;
-  const discountAmount = effectiveCoupon ? effectiveCoupon.discount : 0;
-
-  const grand = Math.max(0, cartTotal + deliveryFee + platformFee - discountAmount);
-  const awayFromFree = Math.max(0, FREE_DELIVERY_OVER - cartTotal);
-  const progress = Math.min(100, Math.round((cartTotal / FREE_DELIVERY_OVER) * 100));
-
-  const isCodAllowed = grand <= 100;
-  const effectiveMode = isCodAllowed && paymentMode === 'cod' ? 'COD' : 'PREPAID';
-
-  const placeOrder = async () => {
-    if (!user) { onClose(); nav('/login'); return; }
-    const addr = (address || user.address).trim();
-    if (!addr) { setErr('Enter a delivery address'); return; }
-    if (lines.length === 0) return;
-    setPlacing(true);
-    setErr('');
-
-    // If PREPAID, initiate automated PhonePe Payment Gateway redirect
-    if (effectiveMode === 'PREPAID') {
-      try {
-        const orderAddr = effectiveCoupon
-          ? `${addr} [PREPAID] [Coupon: ${effectiveCoupon.code} (-₹${discountAmount})]`
-          : `${addr} [PREPAID]`;
-
-        const initResp = await fetch('/api/phonepe/initiate', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            customerName: user.name,
-            phone: user.phone,
-            address: orderAddr,
-            items: lines.map((l) => ({
-              itemId: l.item.id,
-              name: l.item.name,
-              quantity: l.qty,
-              price: priceOf(l.item),
-              totalPrice: priceOf(l.item) * l.qty,
-            })),
-            totalAmount: grand,
-          }),
-        });
-
-        const initData = await initResp.json();
-
-        if (initData.success && initData.redirectUrl) {
-          // Redirect browser to PhonePe Secure Gateway
-          window.location.href = initData.redirectUrl;
-          return;
-        } else {
-          setErr(initData.error || 'Could not connect to PhonePe Gateway. Try again or select COD.');
-          setPlacing(false);
-          return;
-        }
-      } catch (e: unknown) {
-        console.error('PhonePe initiate error:', e);
-        setErr('PhonePe Gateway unreachable. Please check connection or try COD.');
-        setPlacing(false);
-        return;
-      }
+  const handleApply = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (couponInput.trim()) {
+      await applyCoupon(couponInput.trim());
     }
+  };
 
-    // COD Flow (Only for orders <= ₹100)
-    try {
-      const res = await api.placeOrder({
-        customerName: user.name,
-        phone: user.phone,
-        address: effectiveCoupon
-          ? `${addr} [${effectiveMode}] [Coupon: ${effectiveCoupon.code} (-₹${discountAmount})]`
-          : `${addr} [${effectiveMode}]`,
-        items: lines.map((l) => ({
-          itemId: l.item.id,
-          name: l.item.name,
-          quantity: l.qty,
-          price: priceOf(l.item),
-          totalPrice: priceOf(l.item) * l.qty,
-        })),
-        totalAmount: grand,
-      });
-      clearCart();
-      onClose();
-      const oid = res.order.orderId ?? res.order.id;
-      nav(`/track/${encodeURIComponent(oid)}`);
-    } catch (e: unknown) {
-      setErr(e instanceof Error ? e.message : 'Order failed — is the backend online?');
+  const handleQuickApply = async (code: string) => {
+    setCouponInput(code);
+    await applyCoupon(code);
+  };
+
+  const handleCheckoutSubmit = async () => {
+    if (!user) {
+      setShowLoginModal(true);
+      return;
     }
-    setPlacing(false);
+    
+    setIsPlacing(true);
+    // Simulate API delay
+    await new Promise((resolve) => setTimeout(resolve, 1500));
+    const ok = await placeOrder(paymentMethod);
+    setIsPlacing(false);
+    if (ok) {
+      setCheckoutStep('cart');
+      setCartDrawerOpen(false);
+    }
+  };
+
+  const getCustomizationsText = (ci: any) => {
+    if (!ci.selectedCustomizations || ci.selectedCustomizations.length === 0) return '';
+    return ci.selectedCustomizations.map((c: any) => c.choiceName).join(', ');
   };
 
   return (
-    <>
-      <div className="drawer-overlay" onClick={onClose} />
-      <div className="drawer" role="dialog" aria-modal="true" aria-label="Your cart">
-        <div className="drawer-head">
-          <div>
-            <h3>Your Cart 🛒</h3>
-            <small>{cartCount} item{cartCount === 1 ? '' : 's'} · Birmaharajpur delivery</small>
+    <div className="fixed inset-0 z-50 flex justify-end bg-black/60 backdrop-blur-sm animate-fade-in">
+      {/* Backdrop Close Click */}
+      <div className="absolute inset-0 -z-10" onClick={() => setCartDrawerOpen(false)} />
+
+      {/* Main Drawer Container */}
+      <div className="w-full sm:max-w-md bg-white dark:bg-slate-900 h-full overflow-hidden shadow-2xl border-l border-slate-100 dark:border-slate-800 flex flex-col justify-between animate-slide-left">
+        
+        {/* Header Block */}
+        <div className="p-6 border-b border-slate-100 dark:border-slate-800/80 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <h3 className="text-lg font-black text-slate-900 dark:text-white font-display uppercase tracking-tight">
+              {checkoutStep === 'cart' ? 'Your Gourmet Bag' : 'Secure Checkout'}
+            </h3>
+            <span className="px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-850 text-[10px] font-mono-numbers font-black text-slate-500 dark:text-slate-400">
+              {cart.length} items
+            </span>
           </div>
-          <button className="drawer-close" onClick={onClose} aria-label="Close cart">✕</button>
+
+          <button
+            onClick={() => setCartDrawerOpen(false)}
+            className="p-2 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 rounded-full hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
+          >
+            <X className="w-5 h-5" />
+          </button>
         </div>
-        <div className="drawer-body">
-          {lines.length === 0 ? (
-            <div className="empty">
-              <div className="empty-icon">🍽️</div>
-              <h3>Cart is empty</h3>
-              <p>Add something delicious!</p>
-              <button className="btn-primary" style={{ marginTop: 16 }} onClick={() => { onClose(); nav('/grocery'); }}>
-                Browse Grocery →
+
+        {/* Scrollable Content Pane */}
+        <div className="flex-1 overflow-y-auto p-6 space-y-6">
+          {cart.length === 0 ? (
+            <div className="h-full flex flex-col items-center justify-center text-center space-y-4">
+              <span className="text-5xl select-none">🍛</span>
+              <div className="space-y-1">
+                <h4 className="text-base font-bold text-slate-900 dark:text-white font-display">Your bag is empty</h4>
+                <p className="text-xs text-slate-400 max-w-xs mx-auto">Add some sizzling Royal Biryanis or fresh grocery ingredients from the catalog to start your feast!</p>
+              </div>
+              <button
+                onClick={() => setCartDrawerOpen(false)}
+                className="px-5 py-2.5 bg-orange-500 hover:bg-orange-600 text-white font-bold text-xs rounded-xl shadow-md transition-all active:scale-95"
+              >
+                Start Browsing Menu
               </button>
             </div>
-          ) : (
-            <>
-              {deliveryFee > 0 ? (
-                <div className="free-del-progress">
-                  Add <strong>₹{awayFromFree}</strong> more for FREE delivery 🛵
-                  <div className="bar" role="progressbar" aria-valuenow={progress} aria-valuemin={0} aria-valuemax={100}>
-                    <i style={{ width: `${progress}%` }} />
-                  </div>
+          ) : checkoutStep === 'cart' ? (
+            // ================= STEP 1: CART OVERVIEW =================
+            <div className="space-y-6">
+              
+              {/* Itemized list */}
+              <div className="space-y-4">
+                {cart.map((ci) => {
+                  const customPrice = ci.selectedCustomizations.reduce((acc, c) => acc + c.price, 0);
+                  const totalUnit = ci.item.price + customPrice;
+
+                  return (
+                    <div 
+                      key={ci.id}
+                      className="flex items-start justify-between gap-4 p-4 rounded-2xl bg-slate-50/50 dark:bg-slate-800/20 border border-slate-100/60 dark:border-slate-850/40 transition-all hover:bg-slate-50 dark:hover:bg-slate-800/40"
+                    >
+                      <div className="flex-1 space-y-1">
+                        <div className="flex items-center gap-1.5">
+                          <span className={`w-2 h-2 rounded-full ${ci.item.isVeg ? 'bg-emerald-500' : 'bg-red-500'}`} />
+                          <h4 className="text-xs font-bold text-slate-900 dark:text-white line-clamp-1">
+                            {ci.item.name}
+                          </h4>
+                        </div>
+
+                        {ci.selectedCustomizations.length > 0 && (
+                          <p className="text-[10px] text-slate-400 font-medium italic">
+                            {getCustomizationsText(ci)}
+                          </p>
+                        )}
+
+                        {ci.instructions && (
+                          <div className="text-[10px] text-orange-600 dark:text-orange-400 bg-orange-50/40 dark:bg-orange-950/10 px-2 py-0.5 rounded-md inline-block max-w-full truncate">
+                            “{ci.instructions}”
+                          </div>
+                        )}
+
+                        <span className="block text-[10px] text-slate-400 font-mono-numbers font-semibold">
+                          ₹{totalUnit} × {ci.quantity}
+                        </span>
+                      </div>
+
+                      {/* Quantity Modifier Right Side */}
+                      <div className="flex flex-col items-end justify-between h-full min-h-[50px] shrink-0">
+                        <span className="text-xs font-mono-numbers font-black text-slate-900 dark:text-white">
+                          ₹{totalUnit * ci.quantity}
+                        </span>
+
+                        <div className="flex items-center bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-slate-100 dark:border-slate-700/60 p-0.5">
+                          <button
+                            onClick={() => updateQuantity(ci.id, -1)}
+                            className="w-6 h-6 flex items-center justify-center text-slate-500 hover:text-orange-500 font-extrabold text-xs"
+                          >
+                            -
+                          </button>
+                          <span className="w-5 text-center text-xs font-mono-numbers font-black text-slate-800 dark:text-slate-200">
+                            {ci.quantity}
+                          </span>
+                          <button
+                            onClick={() => updateQuantity(ci.id, 1)}
+                            className="w-6 h-6 flex items-center justify-center text-slate-500 hover:text-orange-500 font-extrabold text-xs"
+                          >
+                            +
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Coupon Applicator Widget */}
+              <div className="p-4 bg-slate-50/50 dark:bg-slate-800/20 border border-slate-100 dark:border-slate-850 rounded-2xl space-y-3">
+                <div className="flex items-center gap-2 text-slate-800 dark:text-slate-200">
+                  <Tag className="w-4 h-4 text-orange-500" />
+                  <span className="text-xs font-black uppercase tracking-wider">Coupons & Promos</span>
                 </div>
-              ) : (
-                <div className="free-del-progress" style={{ background: '#E7F6EC', borderColor: '#BFE6CC', color: '#0a5c2f' }}>
-                  🎉 You&apos;ve unlocked <strong>FREE delivery!</strong>
-                  <div className="bar"><i style={{ width: '100%' }} /></div>
-                </div>
-              )}
-              {lines.map((l) => (
-                <div key={l.item.id} className="cart-line">
-                  <img src={l.item.image} alt={l.item.name} loading="lazy" />
-                  <div className="cl-info">
-                    <strong>{l.item.name}</strong>
-                    <span className="unit">₹{priceOf(l.item)} each</span>
-                    <div className="cl-total">₹{priceOf(l.item) * l.qty}</div>
-                  </div>
-                  <div className="qty-ctl mini">
-                    <button onClick={() => removeFromCart(l.item.id)} aria-label={`Remove one ${l.item.name}`}>−</button>
-                    <strong aria-live="polite">{l.qty}</strong>
-                    <button onClick={() => addToCart(l.item.id)} aria-label={`Add one more ${l.item.name}`}>+</button>
-                  </div>
-                </div>
-              ))}
-              {/* 🏷️ Discount Coupons Section (50 / 60 / 70) */}
-              <div
-                style={{
-                  background: 'linear-gradient(135deg, #FFFDF8 0%, #FEF9EE 100%)',
-                  border: '1.5px dashed #F59E0B',
-                  borderRadius: '12px',
-                  padding: '12px',
-                  marginTop: '12px',
-                  marginBottom: '8px',
-                }}
-              >
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-                  <span
-                    style={{
-                      fontSize: '12px',
-                      fontWeight: 800,
-                      color: '#B45309',
-                      textTransform: 'uppercase',
-                      letterSpacing: '0.6px',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '5px',
-                    }}
+
+                <form onSubmit={handleApply} className="flex gap-2">
+                  <input
+                    type="text"
+                    placeholder="Enter Coupon (e.g. MELA50)"
+                    value={couponInput}
+                    onChange={(e) => setCouponInput(e.target.value.toUpperCase())}
+                    className="flex-1 px-3.5 py-2 text-xs font-bold bg-white dark:bg-slate-800 border border-slate-250 dark:border-slate-750 rounded-xl focus:outline-none focus:border-orange-500 text-slate-900 dark:text-white"
+                  />
+                  <button
+                    type="submit"
+                    className="px-4 py-2 bg-slate-900 dark:bg-emerald-600 hover:bg-slate-800 text-white font-bold text-xs rounded-xl"
                   >
-                    🏷️ Available Coupons (Save ₹50–₹70)
-                  </span>
-                  {effectiveCoupon && (
+                    Apply
+                  </button>
+                </form>
+
+                {couponError && (
+                  <p className="text-[10px] font-medium text-red-600 dark:text-red-400">
+                    {couponError}
+                  </p>
+                )}
+
+                {appliedCoupon ? (
+                  <div className="flex items-center justify-between p-2.5 bg-emerald-50/50 dark:bg-emerald-950/20 border border-emerald-500/25 rounded-xl text-[11px]">
+                    <div className="flex items-center gap-1.5 text-emerald-800 dark:text-emerald-400 font-semibold">
+                      <Percent className="w-3.5 h-3.5" />
+                      <span>Applied: {appliedCoupon.code}</span>
+                    </div>
                     <button
-                      type="button"
-                      onClick={() => setSelectedCouponCode('NONE')}
-                      style={{
-                        fontSize: '11px',
-                        color: '#DC2626',
-                        background: 'none',
-                        border: 'none',
-                        cursor: 'pointer',
-                        fontWeight: 700,
-                        padding: '2px 6px',
-                      }}
+                      onClick={removeCoupon}
+                      className="text-[10px] font-black text-red-500 hover:underline uppercase"
                     >
                       Remove
                     </button>
-                  )}
+                  </div>
+                ) : (
+                  // Suggested list
+                  <div className="space-y-1.5">
+                    <span className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider">Suggested Codes</span>
+                    <div className="flex flex-col gap-1.5">
+                      <button
+                        onClick={() => handleQuickApply('MELA50')}
+                        className="flex items-center justify-between p-2 rounded-xl bg-white dark:bg-slate-850 hover:border-orange-500/30 border border-slate-100 dark:border-slate-750 text-left transition-colors text-[10px]"
+                      >
+                        <div>
+                          <span className="font-extrabold text-orange-500 dark:text-orange-400">MELA50</span>
+                          <span className="text-slate-400 font-medium ml-1.5">50% off up to ₹120</span>
+                        </div>
+                        <ChevronRight className="w-3 h-3 text-slate-400" />
+                      </button>
+
+                      <button
+                        onClick={() => handleQuickApply('GOLD20')}
+                        className="flex items-center justify-between p-2 rounded-xl bg-white dark:bg-slate-850 hover:border-orange-500/30 border border-slate-100 dark:border-slate-750 text-left transition-colors text-[10px]"
+                      >
+                        <div>
+                          <span className="font-extrabold text-emerald-600 dark:text-emerald-400">GOLD20</span>
+                          <span className="text-slate-400 font-medium ml-1.5">Flat 20% off meals</span>
+                        </div>
+                        <ChevronRight className="w-3 h-3 text-slate-400" />
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          ) : (
+            // ================= STEP 2: ADDRESS & PAYMENT =================
+            <div className="space-y-6">
+              
+              {/* Delivery Location Section */}
+              <div className="space-y-3">
+                <div className="flex items-center gap-2 text-slate-800 dark:text-slate-200">
+                  <MapPin className="w-4 h-4 text-orange-500" />
+                  <span className="text-xs font-black uppercase tracking-wider">Confirm Delivery Address</span>
                 </div>
 
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '6px' }}>
-                  {COUPONS.map((c) => {
-                    const isEligible = cartTotal >= c.minOrder;
-                    const isApplied = effectiveCoupon?.code === c.code;
+                {!user ? (
+                  <button
+                    onClick={() => { playNotificationSound('click'); setShowLoginModal(true); }}
+                    className="w-full p-4 border border-dashed border-slate-300 dark:border-slate-750 rounded-2xl text-center text-xs font-semibold text-orange-500"
+                  >
+                    Please sign in to select saved addresses
+                  </button>
+                ) : (
+                  <div className="space-y-2">
+                    {user.savedAddresses.map((addr) => {
+                      const isSelected = selectedAddressId === addr.id;
+                      return (
+                        <button
+                          key={addr.id}
+                          onClick={() => { playNotificationSound('click'); setSelectedAddressId(addr.id); }}
+                          className={`w-full text-left p-3.5 rounded-xl border transition-all text-xs flex items-start gap-3 ${
+                            isSelected 
+                              ? 'bg-orange-50/40 border-orange-500 dark:bg-orange-950/20 dark:border-orange-500' 
+                              : 'bg-slate-50/50 dark:bg-slate-800/40 border-slate-100 dark:border-slate-800'
+                          }`}
+                        >
+                          <div className={`mt-0.5 w-3.5 h-3.5 rounded-full border flex items-center justify-center ${
+                            isSelected ? 'border-orange-500' : 'border-slate-300 dark:border-slate-600'
+                          }`}>
+                            {isSelected && <div className="w-1.5 h-1.5 rounded-full bg-orange-500" />}
+                          </div>
+                          <div>
+                            <span className="font-extrabold text-slate-900 dark:text-white uppercase tracking-wider text-[10px]">
+                              {addr.label}
+                            </span>
+                            <p className="text-slate-500 dark:text-slate-400 font-medium mt-0.5">
+                              {addr.addressLine}, {addr.city}
+                            </p>
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+
+              {/* Secure Payment Mode selection */}
+              <div className="space-y-3">
+                <div className="flex items-center gap-2 text-slate-800 dark:text-slate-200">
+                  <CreditCard className="w-4 h-4 text-orange-500" />
+                  <span className="text-xs font-black uppercase tracking-wider">Select Payment Method</span>
+                </div>
+
+                <div className="grid grid-cols-1 gap-2">
+                  {[
+                    { id: 'UPI', title: 'Instant UPI (GPay/PhonePe)', subtitle: 'Waived Platform Fee' },
+                    { id: 'CARD', title: 'Credit / Debit Card', subtitle: 'Secure via PayU' },
+                    { id: 'COD', title: 'Cash on Delivery (COD)', subtitle: 'No verification charges' },
+                  ].map((pay) => {
+                    const isSelected = paymentMethod === pay.id;
                     return (
                       <button
-                        key={c.code}
-                        type="button"
-                        disabled={!isEligible}
-                        onClick={() => setSelectedCouponCode(c.code)}
-                        style={{
-                          padding: '8px 4px',
-                          borderRadius: '10px',
-                          border: isApplied
-                            ? '2px solid #0e9f4e'
-                            : isEligible
-                              ? '1.5px solid #F59E0B'
-                              : '1px solid #E5E7EB',
-                          background: isApplied
-                            ? '#E7F6EC'
-                            : isEligible
-                              ? '#FFFFFF'
-                              : '#F3F4F6',
-                          color: isApplied ? '#0a5c2f' : isEligible ? '#1F2937' : '#9CA3AF',
-                          cursor: isEligible ? 'pointer' : 'not-allowed',
-                          textAlign: 'center',
-                          display: 'flex',
-                          flexDirection: 'column',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          boxShadow: isApplied ? '0 2px 6px rgba(14, 159, 78, 0.18)' : 'none',
-                          transition: 'all 0.15s ease',
-                          fontFamily: 'inherit',
-                        }}
+                        key={pay.id}
+                        onClick={() => { playNotificationSound('click'); setPaymentMethod(pay.id); }}
+                        className={`w-full text-left p-3.5 rounded-xl border transition-all text-xs flex items-center justify-between ${
+                          isSelected 
+                            ? 'bg-orange-50/40 border-orange-500 dark:bg-orange-950/20 dark:border-orange-500' 
+                            : 'bg-slate-50/50 dark:bg-slate-800/40 border-slate-100 dark:border-slate-800'
+                        }`}
                       >
-                        <span
-                          style={{
-                            fontSize: '11px',
-                            fontWeight: 800,
-                            color: isApplied ? '#0e9f4e' : isEligible ? '#D97706' : '#9CA3AF',
-                          }}
-                        >
-                          {c.code}
-                        </span>
-                        <span
-                          style={{
-                            fontSize: '13px',
-                            fontWeight: 900,
-                            color: isApplied ? '#0a5c2f' : isEligible ? '#111827' : '#9CA3AF',
-                          }}
-                        >
-                          ₹{c.discount} OFF
-                        </span>
-                        <span
-                          style={{
-                            fontSize: '9.5px',
-                            fontWeight: 600,
-                            color: isApplied ? '#0e9f4e' : isEligible ? '#059669' : '#9CA3AF',
-                            marginTop: '2px',
-                          }}
-                        >
-                          {isApplied ? '✓ Applied' : isEligible ? 'Tap to apply' : `Min ₹${c.minOrder}`}
-                        </span>
+                        <div className="flex items-center gap-3">
+                          <div className={`w-3.5 h-3.5 rounded-full border flex items-center justify-center ${
+                            isSelected ? 'border-orange-500' : 'border-slate-300 dark:border-slate-600'
+                          }`}>
+                            {isSelected && <div className="w-1.5 h-1.5 rounded-full bg-orange-500" />}
+                          </div>
+                          <div>
+                            <span className="font-bold text-slate-900 dark:text-white">{pay.title}</span>
+                            <span className="block text-[9px] text-slate-400 font-medium">{pay.subtitle}</span>
+                          </div>
+                        </div>
                       </button>
                     );
                   })}
                 </div>
-
-                {effectiveCoupon ? (
-                  <div
-                    style={{
-                      marginTop: '8px',
-                      fontSize: '11.5px',
-                      fontWeight: 700,
-                      color: '#059669',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '4px',
-                    }}
-                  >
-                    <span>🎉</span>
-                    <span>
-                      Coupon <strong>{effectiveCoupon.code}</strong> applied! You save <strong>₹{discountAmount}</strong>!
-                    </span>
-                  </div>
-                ) : (
-                  <div
-                    style={{
-                      marginTop: '8px',
-                      fontSize: '11px',
-                      color: '#B45309',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '4px',
-                    }}
-                  >
-                    <span>💡</span>
-                    <span>Add items to cart (min ₹100) to get flat ₹50, ₹60, ₹70 discounts!</span>
-                  </div>
-                )}
               </div>
 
-              <div className="bill-box">
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-                  <h4 style={{ margin: 0 }}>Bill Details</h4>
-                  {effectiveCoupon && (
-                    <span style={{ fontSize: '11px', fontWeight: 800, color: '#0e9f4e', background: '#E7F6EC', padding: '2px 8px', borderRadius: '6px' }}>
-                      ₹{discountAmount} SAVED
-                    </span>
-                  )}
-                </div>
-                <div className="bill-row"><span>Subtotal</span><span>₹{cartTotal}</span></div>
-                {effectiveCoupon && (
-                  <div
-                    className="bill-row save"
-                    style={{
-                      color: '#0e9f4e',
-                      fontWeight: 700,
-                      background: '#E7F6EC',
-                      padding: '6px 10px',
-                      borderRadius: '8px',
-                      margin: '6px 0',
-                      border: '1px solid #BFE6CC',
-                    }}
-                  >
-                    <span>Special Discount ({effectiveCoupon.code}) 🎉</span>
-                    <span>− ₹{discountAmount}</span>
-                  </div>
-                )}
-                {savings > 0 && <div className="bill-row save"><span>Item MRP Savings</span><span>− ₹{savings}</span></div>}
-                <div className="bill-row">
-                  <span>Delivery {deliveryFee === 0 ? '(FREE over ₹299)' : ''}</span>
-                  <span>{deliveryFee === 0 ? 'FREE' : `₹${deliveryFee}`}</span>
-                </div>
-                <div className="bill-row"><span>Platform Fee</span><span>₹{platformFee}</span></div>
-                <div className="bill-row total"><span>Total</span><span>₹{grand}</span></div>
-              </div>
-
-              {/* Delivery Address Section */}
-              <div style={{ marginTop: '14px' }}>
-                <div style={{ fontSize: '11.5px', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.8px', color: 'var(--muted)', marginBottom: '6px', display: 'flex', alignItems: 'center', gap: '5px' }}>
-                  📍 Delivery Address
-                </div>
-                <textarea
-                  className="addr-input"
-                  rows={2}
-                  placeholder={user ? `Deliver to: ${user.address}` : 'Delivery address'}
-                  value={address}
-                  onChange={(e) => setAddress(e.target.value)}
-                  aria-label="Delivery address"
-                  style={{ marginBottom: '4px', resize: 'vertical' }}
-                />
-              </div>
-
-              {/* Payment Method Section — Solid Vibrant Green Highlight on Select */}
-              <div className="pay-opt-box" style={{ margin: '14px 0 16px', background: '#f8faf9', padding: '14px', borderRadius: '18px', border: '1.5px solid #e2ede5' }}>
-                <div style={{ fontSize: '11.5px', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.8px', color: '#64748b', marginBottom: '10px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                  <span>💳 Select Payment Method</span>
-                  <span style={{ fontSize: '11px', color: '#0e9f4e', fontWeight: 900 }}>
-                    {paymentMode === 'prepaid' ? '⚡ Instant Online / UPI' : '💵 Cash on Delivery'}
-                  </span>
-                </div>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
-                  {/* Online / UPI Option */}
-                  <button
-                    type="button"
-                    onClick={() => setPaymentMode('prepaid')}
-                    style={{
-                      padding: '12px 10px',
-                      borderRadius: '14px',
-                      border: paymentMode === 'prepaid' ? '2px solid #065427' : '1.5px solid #e2ede5',
-                      background: paymentMode === 'prepaid'
-                        ? 'linear-gradient(135deg, #0e9f4e 0%, #097337 100%)'
-                        : '#ffffff',
-                      color: paymentMode === 'prepaid' ? '#ffffff' : '#374151',
-                      cursor: 'pointer',
-                      fontSize: '12.5px',
-                      fontWeight: 800,
-                      textAlign: 'center',
-                      fontFamily: 'inherit',
-                      boxShadow: paymentMode === 'prepaid' ? '0 8px 20px rgba(14, 159, 78, 0.4)' : '0 2px 6px rgba(0,0,0,0.02)',
-                      transform: paymentMode === 'prepaid' ? 'translateY(-2px)' : 'none',
-                      transition: 'all 0.2s cubic-bezier(0.16, 1, 0.3, 1)',
-                      position: 'relative',
-                      overflow: 'hidden',
-                    }}
-                  >
-                    {paymentMode === 'prepaid' && (
-                      <span style={{ position: 'absolute', top: '4px', right: '6px', background: '#ffc531', color: '#451a03', fontSize: '9px', fontWeight: 900, padding: '2px 7px', borderRadius: '999px', boxShadow: '0 2px 6px rgba(0,0,0,0.18)' }}>
-                        ✓ ACTIVE
-                      </span>
-                    )}
-                    <span style={{ display: 'block', fontSize: '18px', marginBottom: '2px' }}>⚡ 📱</span>
-                    <span>Online / UPI</span>
-                    <span style={{ display: 'block', fontSize: '10.5px', fontWeight: 700, color: paymentMode === 'prepaid' ? '#ffc531' : '#6b7280', marginTop: '3px' }}>
-                      Fast Paytm / GPay / QR
-                    </span>
-                  </button>
-
-                  {/* Cash on Delivery Option */}
-                  <button
-                    type="button"
-                    onClick={() => setPaymentMode('cod')}
-                    style={{
-                      padding: '12px 10px',
-                      borderRadius: '14px',
-                      border: paymentMode === 'cod' ? '2px solid #065427' : !isCodAllowed ? '1.5px solid #fecdd3' : '1.5px solid #e2ede5',
-                      background: paymentMode === 'cod'
-                        ? 'linear-gradient(135deg, #0e9f4e 0%, #097337 100%)'
-                        : !isCodAllowed
-                        ? '#fff1f2'
-                        : '#ffffff',
-                      color: paymentMode === 'cod' ? '#ffffff' : !isCodAllowed ? '#9ca3af' : '#374151',
-                      cursor: 'pointer',
-                      fontSize: '12.5px',
-                      fontWeight: 800,
-                      textAlign: 'center',
-                      fontFamily: 'inherit',
-                      boxShadow: paymentMode === 'cod' ? '0 8px 20px rgba(14, 159, 78, 0.4)' : '0 2px 6px rgba(0,0,0,0.02)',
-                      transform: paymentMode === 'cod' ? 'translateY(-2px)' : 'none',
-                      transition: 'all 0.2s cubic-bezier(0.16, 1, 0.3, 1)',
-                      position: 'relative',
-                      overflow: 'hidden',
-                    }}
-                  >
-                    {paymentMode === 'cod' && (
-                      <span style={{ position: 'absolute', top: '4px', right: '6px', background: '#ffc531', color: '#451a03', fontSize: '9px', fontWeight: 900, padding: '2px 7px', borderRadius: '999px', boxShadow: '0 2px 6px rgba(0,0,0,0.18)' }}>
-                        ✓ ACTIVE
-                      </span>
-                    )}
-                    <span style={{ display: 'block', fontSize: '18px', marginBottom: '2px' }}>💵 🧾</span>
-                    <span>Cash on Delivery</span>
-                    <span style={{ display: 'block', fontSize: '10.5px', fontWeight: 700, color: paymentMode === 'cod' ? '#ffc531' : !isCodAllowed ? '#e11d48' : '#6b7280', marginTop: '3px' }}>
-                      {isCodAllowed ? 'Pay cash at door (≤ ₹100)' : 'COD capped at ₹100'}
-                    </span>
-                  </button>
-                </div>
-
-                {!isCodAllowed && (
-                  <div style={{ fontSize: '11px', color: '#991b1b', marginTop: '10px', background: '#fef2f2', border: '1px solid #fecdd3', padding: '8px 12px', borderRadius: '10px', lineHeight: '1.45', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    <span>ℹ️</span>
-                    <span>Orders above ₹100 are set to <strong>Online / UPI</strong> for safety. COD is capped at ₹100.</span>
-                  </div>
-                )}
-
-                <div style={{ fontSize: '11px', color: '#64748b', marginTop: '10px', textAlign: 'center', lineHeight: '1.45', background: '#ffffff', padding: '8px 10px', borderRadius: '10px', border: '1px solid #e5eee7' }}>
-                  🛡️ <strong>100% Sealed & Safe Delivery:</strong> Picked up directly from partner stores. Helpline: <a href="tel:8144503650" style={{ color: '#0e9f4e', fontWeight: 800 }}>8144503650</a>
-                </div>
-              </div>
-            </>
+            </div>
           )}
         </div>
-        {lines.length > 0 && (
-          <div className="drawer-foot">
-            {err && (
-              <p style={{ color: '#DC2626', fontSize: '12px', marginBottom: '8px', fontWeight: 700, background: '#FEF2F2', padding: '6px 10px', borderRadius: '8px' }}>
-                ⚠️ {err}
-              </p>
-            )}
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px' }}>
-              <div>
-                <div style={{ fontSize: '11px', color: 'var(--muted)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                  To Pay ({effectiveMode})
-                </div>
-                <div style={{ fontSize: '20px', fontWeight: 900, color: 'var(--ink)', lineHeight: '1.2' }}>
-                  ₹{grand}
-                  {discountAmount > 0 && (
-                    <span style={{ fontSize: '10.5px', color: '#0e9f4e', fontWeight: 800, marginLeft: '6px', background: '#E7F6EC', padding: '1px 6px', borderRadius: '4px' }}>
-                      ₹{discountAmount} OFF
-                    </span>
-                  )}
-                </div>
+
+        {/* Invoice pricing breakdown block */}
+        {cart.length > 0 && (
+          <div className="p-6 bg-slate-50 dark:bg-slate-950 border-t border-slate-100 dark:border-slate-850 space-y-4 shrink-0">
+            <div className="space-y-2 text-xs font-semibold text-slate-600 dark:text-slate-400">
+              <div className="flex items-center justify-between">
+                <span>Food & Grocery Total</span>
+                <span className="font-mono-numbers text-slate-900 dark:text-white">₹{cartTotal}</span>
               </div>
-              <button
-                className="btn-primary"
-                style={{ flex: 1, padding: '13px 18px', fontSize: '14.5px', borderRadius: '14px', fontWeight: 800, textAlign: 'center' }}
-                disabled={placing}
-                onClick={placeOrder}
-              >
-                {placing ? 'Placing...' : user ? 'Place Order →' : 'Login to Order →'}
-              </button>
+
+              {appliedCoupon && (
+                <div className="flex items-center justify-between text-emerald-600 dark:text-emerald-400">
+                  <span className="flex items-center gap-1">
+                    <Gift className="w-3.5 h-3.5" />
+                    <span>Coupon Savings ({appliedCoupon.code})</span>
+                  </span>
+                  <span className="font-mono-numbers">-₹{discountAmount}</span>
+                </div>
+              )}
+
+              {user?.isGoldMember && (
+                <div className="flex items-center justify-between text-yellow-600 dark:text-yellow-400 font-extrabold">
+                  <span>Mela Gold Food Discount</span>
+                  <span className="font-mono-numbers">-₹{Math.round(cartTotal * 0.15)}</span>
+                </div>
+              )}
+
+              <div className="flex items-center justify-between">
+                <span>Delivery Fee (15-Min Express)</span>
+                <span className="font-mono-numbers text-slate-900 dark:text-white">
+                  {deliveryFee === 0 ? <span className="text-emerald-500 font-bold uppercase text-[10px]">Free</span> : `₹${deliveryFee}`}
+                </span>
+              </div>
+
+              <div className="flex items-center justify-between">
+                <span>Restaurant Taxes & GST</span>
+                <span className="font-mono-numbers text-slate-900 dark:text-white">₹{taxes}</span>
+              </div>
+
+              <div className="flex items-center justify-between">
+                <span>Convenience / Platform Fee</span>
+                <span className="font-mono-numbers text-slate-900 dark:text-white">
+                  {platformFee === 0 ? <span className="text-emerald-500 font-bold uppercase text-[10px]">Waived</span> : `₹${platformFee}`}
+                </span>
+              </div>
+
+              <hr className="border-slate-200 dark:border-slate-800 my-1" />
+
+              <div className="flex items-center justify-between text-sm text-slate-900 dark:text-white font-black">
+                <span className="font-display">Grand Total Amount</span>
+                <span className="font-mono-numbers text-lg">₹{grandTotal}</span>
+              </div>
             </div>
+
+            {/* Step navigation & Submit CTAs */}
+            {checkoutStep === 'cart' ? (
+              <button
+                onClick={() => { playNotificationSound('click'); setCheckoutStep('checkout'); }}
+                className="w-full py-3.5 px-6 bg-slate-900 hover:bg-slate-800 dark:bg-emerald-600 dark:hover:bg-emerald-500 text-white font-black text-sm rounded-xl transition-all shadow-lg active:scale-[0.98] flex items-center justify-center gap-1.5"
+              >
+                <span>Proceed to Checkout</span>
+                <ChevronRight className="w-4 h-4" />
+              </button>
+            ) : (
+              <div className="flex gap-2">
+                <button
+                  onClick={() => { playNotificationSound('click'); setCheckoutStep('cart'); }}
+                  className="px-4 py-3.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:bg-slate-50 text-slate-700 dark:text-slate-300 font-bold text-xs rounded-xl"
+                  disabled={isPlacing}
+                >
+                  Back
+                </button>
+                <button
+                  onClick={handleCheckoutSubmit}
+                  disabled={isPlacing}
+                  className="flex-1 py-3.5 px-6 bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white font-black text-sm rounded-xl transition-all shadow-lg shadow-orange-500/10 active:scale-[0.98] flex items-center justify-center gap-2"
+                >
+                  {isPlacing ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      <span>Authenticating UPI Payment...</span>
+                    </>
+                  ) : (
+                    <>
+                      <CheckCircle className="w-4 h-4" />
+                      <span>Place Order · ₹{grandTotal}</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            )}
           </div>
         )}
+
       </div>
-    </>
+    </div>
   );
 }

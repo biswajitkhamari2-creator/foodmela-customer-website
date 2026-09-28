@@ -13,7 +13,6 @@ export interface CatalogItem {
   id: string;
   name: string;
   category: string;
-  categoryLabel?: string;
   price: number;
   originalPrice?: number;
   rating: number;
@@ -23,7 +22,6 @@ export interface CatalogItem {
   isBestseller?: boolean;
   description: string;
   imageFallbackGradient: string; // CSS gradient fallback
-  image?: string; // Real image URL from foodmela.online
   type: 'food' | 'grocery';
   customizationOptions?: CustomizationOption[];
   restaurant?: string;

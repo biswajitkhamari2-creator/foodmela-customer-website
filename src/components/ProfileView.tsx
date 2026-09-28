@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
 import { useApp, playNotificationSound } from '../context/AppContext';
-import { User, Award, MapPin, Power, LogIn, ChevronRight, Check, Heart, Shield, Package, Receipt, ArrowRight } from 'lucide-react';
+import { User, Award, MapPin, Power, LogIn, ChevronRight, Check, Heart, Shield } from 'lucide-react';
 
 export default function ProfileView() {
-  const { user, logout, toggleGoldClub, setShowLoginModal, pastOrders, setActiveTab } = useApp();
+  const { user, logout, toggleGoldClub, setShowLoginModal } = useApp();
   const [newAddressForm, setNewAddressForm] = useState(false);
   const [newLabel, setNewLabel] = useState<'Home' | 'Work' | 'Other'>('Other');
   const [newAddressLine, setNewAddressLine] = useState('');
@@ -22,6 +22,7 @@ export default function ProfileView() {
     };
 
     const updatedAddresses = [...user.savedAddresses, newAddr];
+    // Update local context
     user.savedAddresses = updatedAddresses;
     localStorage.setItem('foodmela_user', JSON.stringify(user));
     setNewAddressLine('');
@@ -34,18 +35,19 @@ export default function ProfileView() {
     const filtered = user.savedAddresses.filter((a) => a.id !== id);
     user.savedAddresses = filtered;
     localStorage.setItem('foodmela_user', JSON.stringify(user));
+    // Trigger small component refresh by toggle state fake
     setNewAddressLine(' ');
     setTimeout(() => setNewAddressLine(''), 10);
   };
 
   return (
-    <div className="space-y-8 animate-fade-in max-w-5xl mx-auto">
+    <div className="space-y-8 animate-fade-in">
       
       {/* Profile Header */}
       <div className="p-6 bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-850 rounded-3xl shadow-sm flex flex-col md:flex-row items-center justify-between gap-6">
         {user ? (
           <div className="flex flex-col md:flex-row items-center gap-4 text-center md:text-left">
-            <div className="w-20 h-20 rounded-2xl bg-gradient-to-tr from-orange-500 to-amber-400 text-white flex items-center justify-center font-black text-3xl uppercase shadow-lg shadow-orange-500/10">
+            <div className="w-20 h-20 rounded-2xl bg-orange-500 text-white flex items-center justify-center font-black text-3xl uppercase shadow-lg shadow-orange-500/10">
               {user.name ? user.name[0] : 'U'}
             </div>
             <div className="space-y-1">
@@ -61,7 +63,7 @@ export default function ProfileView() {
                 )}
               </div>
               <p className="text-xs text-slate-400 font-mono-numbers font-semibold">+91 {user.phone}</p>
-              <p className="text-xs text-slate-500 dark:text-slate-400 font-medium">{user.email || `${user.phone}@foodmela.online`}</p>
+              <p className="text-xs text-slate-500 dark:text-slate-400 font-medium">{user.email || 'gourmet.lover@foodmela.online'}</p>
             </div>
           </div>
         ) : (
@@ -70,36 +72,27 @@ export default function ProfileView() {
               <User className="w-8 h-8" />
             </div>
             <div className="space-y-1">
-              <h4 className="text-lg font-bold text-slate-900 dark:text-white font-display">Sign in to unlock Food Mela Gold & Past Orders</h4>
-              <p className="text-xs text-slate-400 max-w-sm mx-auto">Join with OTP to access saved addresses, order history invoices, and member-only discounts!</p>
+              <h4 className="text-lg font-bold text-slate-900 dark:text-white font-display">Sign in to unlock Food Mela Gold</h4>
+              <p className="text-xs text-slate-400 max-w-sm mx-auto">Join the premium connoisseurs club, customize delivery routes, earn loyalty stars, and enjoy flat discounts!</p>
             </div>
             <button
               onClick={() => { playNotificationSound('click'); setShowLoginModal(true); }}
               className="px-6 py-2.5 bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white font-bold text-xs rounded-xl shadow-md flex items-center gap-1.5 mx-auto active:scale-95 transition-all"
             >
               <LogIn className="w-4 h-4" />
-              <span>Sign In with Phone OTP</span>
+              <span>Login / Register Now</span>
             </button>
           </div>
         )}
 
         {user && (
-          <div className="flex items-center gap-3">
-            <button
-              onClick={() => { playNotificationSound('click'); setActiveTab('orders'); }}
-              className="px-4 py-2.5 bg-orange-500/10 hover:bg-orange-500/20 text-orange-600 dark:text-orange-400 text-xs font-bold rounded-xl flex items-center gap-1.5 transition-all active:scale-95"
-            >
-              <Package className="w-4 h-4" />
-              <span>Orders ({pastOrders.length})</span>
-            </button>
-            <button
-              onClick={() => { playNotificationSound('remove'); logout(); }}
-              className="px-4 py-2.5 bg-slate-100 hover:bg-red-50 hover:text-red-600 dark:bg-slate-800 dark:hover:bg-red-950/40 text-slate-600 dark:text-slate-300 text-xs font-bold rounded-xl flex items-center gap-1.5 transition-all active:scale-95"
-            >
-              <Power className="w-4 h-4" />
-              <span>Sign Out</span>
-            </button>
-          </div>
+          <button
+            onClick={() => { playNotificationSound('remove'); logout(); }}
+            className="px-4 py-2 bg-red-50 hover:bg-red-100 dark:bg-red-950/20 dark:hover:bg-red-950/40 text-red-600 dark:text-red-400 font-bold text-xs rounded-xl flex items-center gap-1.5 active:scale-95 transition-all self-center md:self-start"
+          >
+            <Power className="w-3.5 h-3.5" />
+            <span>Sign Out</span>
+          </button>
         )}
       </div>
 
@@ -110,6 +103,7 @@ export default function ProfileView() {
           <div className="lg:col-span-2 space-y-6">
             
             <div className="p-6 bg-slate-900 dark:bg-slate-950 text-white rounded-3xl relative overflow-hidden shadow-xl border border-white/5 space-y-6">
+              {/* Golden Background Light */}
               <div className="absolute right-0 bottom-0 top-0 w-1/2 opacity-10 pointer-events-none bg-[radial-gradient(circle_at_bottom_right,_var(--tw-gradient-stops))] from-amber-500 via-transparent to-transparent" />
 
               <div className="flex items-center justify-between border-b border-white/10 pb-3">
@@ -126,7 +120,7 @@ export default function ProfileView() {
 
               <div className="space-y-4 text-xs font-semibold text-slate-300">
                 <p className="text-sm font-medium leading-relaxed text-white">
-                  Gold Club members save an average of <strong className="text-yellow-400 font-mono-numbers text-sm">₹1,240</strong> monthly with zero delivery fees and priority kitchen dispatch.
+                  Gold Club members save an average of <strong className="text-yellow-400 font-mono-numbers text-sm">₹1,240</strong> monthly. Join today for exclusive access to hand-picked artisanal culinary events.
                 </p>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
@@ -165,7 +159,7 @@ export default function ProfileView() {
               </div>
             </div>
 
-            {/* Saved Addresses Manager */}
+            {/* Saved Addresses Manager section */}
             <div className="p-6 bg-white dark:bg-slate-900 rounded-3xl border border-slate-100 dark:border-slate-850 shadow-sm space-y-6">
               <div className="flex items-center justify-between border-b border-slate-50 dark:border-slate-800/60 pb-2">
                 <h4 className="text-sm font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest">
@@ -179,6 +173,7 @@ export default function ProfileView() {
                 </button>
               </div>
 
+              {/* Add address form */}
               {newAddressForm && (
                 <form onSubmit={handleAddAddress} className="p-4 bg-slate-50 dark:bg-slate-850 rounded-2xl border border-slate-100 dark:border-slate-800 space-y-4">
                   <div className="grid grid-cols-2 gap-3">
@@ -255,33 +250,8 @@ export default function ProfileView() {
 
           </div>
 
-          {/* Quick Stats & Orders Shortcut (Right 1 Column) */}
+          {/* Quick Stats sidebar (Right 1 Column) */}
           <div className="space-y-4">
-            
-            {/* Orders History Shortcut Card */}
-            <div className="p-5 bg-gradient-to-br from-orange-500 to-amber-500 text-white rounded-3xl shadow-lg space-y-3">
-              <div className="flex items-center justify-between">
-                <span className="text-[10px] font-black uppercase tracking-wider bg-white/20 px-2 py-0.5 rounded-full">
-                  Recent Activity
-                </span>
-                <Package className="w-5 h-5 text-white/80" />
-              </div>
-              <div>
-                <h4 className="text-lg font-black font-display tracking-tight">Order Archives</h4>
-                <p className="text-xs text-white/80 mt-0.5">
-                  You have <strong className="text-white font-mono-numbers">{pastOrders.length}</strong> logged gourmet orders.
-                </p>
-              </div>
-              <button
-                onClick={() => { playNotificationSound('click'); setActiveTab('orders'); }}
-                className="w-full py-2.5 px-4 bg-white text-orange-600 hover:bg-slate-50 font-black text-xs rounded-xl shadow-md flex items-center justify-center gap-1.5 transition-all active:scale-95"
-              >
-                <span>View Order Invoices & Reorder</span>
-                <ArrowRight className="w-3.5 h-3.5" />
-              </button>
-            </div>
-
-            {/* Account Summary Stats */}
             <div className="p-5 bg-white dark:bg-slate-900 rounded-3xl border border-slate-100 dark:border-slate-850 shadow-sm space-y-4">
               <h4 className="text-xs font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest border-b border-slate-50 dark:border-slate-800/60 pb-2">
                 Connoisseur Summary
@@ -289,9 +259,8 @@ export default function ProfileView() {
 
               <div className="space-y-3">
                 {[
-                  { label: 'Gourmet Level', value: user.isGoldMember ? 'Gold Elite' : 'Silver Foodie', icon: <Heart className="w-4 h-4 text-rose-500" /> },
-                  { label: 'Past Orders', value: `${pastOrders.length} Orders`, icon: <Package className="w-4 h-4 text-orange-500" /> },
-                  { label: 'Saved Addresses', value: user.savedAddresses.length, icon: <MapPin className="w-4 h-4 text-amber-500" /> },
+                  { label: 'Gourmet Level', value: 'Silver Foodie', icon: <Heart className="w-4 h-4 text-rose-500" /> },
+                  { label: 'Saved Addresses', value: user.savedAddresses.length, icon: <MapPin className="w-4 h-4 text-orange-500" /> },
                   { label: 'Account Security', value: 'OTP Secure', icon: <Shield className="w-4 h-4 text-emerald-500" /> },
                 ].map((stat) => (
                   <div key={stat.label} className="flex items-center justify-between p-3.5 rounded-2xl bg-slate-50/50 dark:bg-slate-800/40 border border-slate-100/60 dark:border-slate-850/40 text-xs font-bold">

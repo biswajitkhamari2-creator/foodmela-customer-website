@@ -1,7 +1,7 @@
 import React from 'react';
 import { useApp, playNotificationSound } from '../context/AppContext';
 import { CatalogItem } from '../types';
-import { Star, Clock, ShoppingCart, Sparkles, AlertCircle, Lock, LogIn, ShieldCheck, CheckCircle2 } from 'lucide-react';
+import { Star, Clock, ShoppingCart, ToggleLeft, ToggleRight, Sparkles, ChefHat, Carrot, AlertCircle } from 'lucide-react';
 
 export default function CatalogGrid() {
   const {
@@ -19,15 +19,14 @@ export default function CatalogGrid() {
     addToCart,
     updateQuantity,
     setCustomizingItem,
-    user,
-    setShowLoginModal,
   } = useApp();
 
   // Filter Catalog Items
   const filteredCatalog = catalog.filter((item) => {
     // 1. Category Filter
     if (selectedCategory !== 'All') {
-      if (item.category !== selectedCategory) return false;
+      if (selectedCategory === 'Groceries' && item.type !== 'grocery') return false;
+      if (selectedCategory !== 'Groceries' && item.category !== selectedCategory) return false;
     }
 
     // 2. Search Query Filter
@@ -39,12 +38,12 @@ export default function CatalogGrid() {
       if (!matchName && !matchDesc && !matchCat) return false;
     }
 
-    // 3. Dietary Filter
+    // 3. Dietary Filter (All, Veg, Non-Veg Tab)
     if (dietaryFilter === 'veg' && !item.isVeg) return false;
     if (dietaryFilter === 'non-veg' && item.isVeg) return false;
 
     // 4. Rating Filter
-    if (ratingFilter && item.rating < 4.8) return false;
+    if (ratingFilter && item.rating < 4.7) return false;
 
     return true;
   });
@@ -58,13 +57,16 @@ export default function CatalogGrid() {
   };
 
   const getCartQuantity = (itemId: string) => {
+    // Find aggregate count of this item (all customization versions combined)
     const matches = cart.filter((ci) => ci.item.id === itemId);
     return matches.reduce((sum, ci) => sum + ci.quantity, 0);
   };
 
   const handleDecreaseQuantity = (itemId: string) => {
+    // Find first cart item with this itemId to reduce quantity
     const matches = cart.filter((ci) => ci.item.id === itemId);
     if (matches.length > 0) {
+      // If there are multiple customizations, decrease the first one
       updateQuantity(matches[0].id, -1);
     }
   };
@@ -74,6 +76,7 @@ export default function CatalogGrid() {
     if (matches.length > 0) {
       updateQuantity(matches[0].id, 1);
     } else {
+      // Safeguard
       const item = catalog.find((i) => i.id === itemId);
       if (item) handleAddClick(item);
     }
@@ -81,20 +84,15 @@ export default function CatalogGrid() {
 
   const getCuisineIcon = (catName: string) => {
     switch (catName) {
-      case 'Vegetables': return '🥦';
-      case 'Fruits': return '🍎';
-      case 'Grocery': return '🛒';
-      case 'Dairy': return '🥛';
-      case 'Eggs & Meat': return '🥚';
-      case 'Cooked Food': return '🍛';
-      case 'Non-Veg': return '🍗';
-      case 'Sweets': return '🍰';
-      case 'Snacks': return '🍿';
-      default: return '🍽️';
+      case 'Biryani': return '🍛';
+      case 'North Indian': return '🥘';
+      case 'Sweets & Mithai': return '🥮';
+      case 'Street Food': return '🥙';
+      case 'Beverages': return '🍹';
+      default: return '🥕';
     }
   };
 
-  // 1. Loading State
   if (loadingCatalog) {
     return (
       <div className="flex flex-col items-center justify-center py-20 gap-4 text-slate-400">
@@ -104,69 +102,15 @@ export default function CatalogGrid() {
     );
   }
 
-  // 2. REQUIREMENT: Products are ONLY visible after login!
-  if (!user) {
-    return (
-      <div className="p-8 sm:p-12 bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-3xl text-center space-y-6 shadow-sm">
-        <div className="w-16 h-16 rounded-3xl bg-gradient-to-tr from-orange-500/10 to-amber-500/20 text-orange-500 flex items-center justify-center mx-auto shadow-inner">
-          <Lock className="w-8 h-8" />
-        </div>
-
-        <div className="space-y-2 max-w-md mx-auto">
-          <span className="text-[10px] font-black uppercase tracking-wider text-orange-500 bg-orange-50 dark:bg-orange-950/40 px-3 py-1 rounded-full border border-orange-200 dark:border-orange-900/40">
-            Members Only Access
-          </span>
-          <h3 className="text-2xl font-black text-slate-900 dark:text-white font-display tracking-tight">
-            Sign In to View Products & Order
-          </h3>
-          <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
-            Food Mela menu products, daily vegetable mandi prices, and grains catalog are exclusively unlocked for verified members.
-          </p>
-        </div>
-
-        {/* Key Points */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 max-w-lg mx-auto text-left text-xs font-semibold text-slate-600 dark:text-slate-300 pt-2">
-          <div className="flex items-center gap-2 p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-800">
-            <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />
-            <span>Fresh Mandi Rates</span>
-          </div>
-          <div className="flex items-center gap-2 p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-800">
-            <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />
-            <span>15-Min Fast Delivery</span>
-          </div>
-          <div className="flex items-center gap-2 p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-800">
-            <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />
-            <span>Instant SMS / OTP</span>
-          </div>
-        </div>
-
-        {/* Direct Login Button */}
-        <div className="pt-3">
-          <button
-            onClick={() => {
-              playNotificationSound('click');
-              setShowLoginModal(true);
-            }}
-            className="px-8 py-3.5 bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white font-extrabold text-sm rounded-2xl shadow-lg shadow-orange-500/20 active:scale-95 transition-all inline-flex items-center gap-2"
-          >
-            <LogIn className="w-4 h-4" />
-            <span>Sign In with Phone OTP to Unlock</span>
-          </button>
-        </div>
-      </div>
-    );
-  }
-
-  // 3. User is logged in -> Render official catalog
   return (
     <div className="space-y-6">
-      {/* Search Filter Controls */}
+      {/* Search Filter Controls / Quick Switches */}
       <div className="flex flex-wrap items-center justify-between gap-4 p-4.5 bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-3xl shadow-sm">
         <div className="flex items-center gap-3">
           {/* Segmented Dietary Filter Tabs */}
           <div className="flex items-center bg-slate-50 dark:bg-slate-800 p-1 rounded-2xl border border-slate-100 dark:border-slate-700">
             {[
-              { id: 'all', label: 'All Items' },
+              { id: 'all', label: 'All Foods' },
               { id: 'veg', label: 'Veg Only', dotColor: 'bg-emerald-500' },
               { id: 'non-veg', label: 'Non-Veg Only', dotColor: 'bg-red-500' },
             ].map((diet) => {
@@ -190,7 +134,7 @@ export default function CatalogGrid() {
             })}
           </div>
 
-          {/* Rating Filter */}
+          {/* Rating 4.7+ Toggle */}
           <button
             onClick={() => { playNotificationSound('click'); setRatingFilter(!ratingFilter); }}
             className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-full border text-xs font-black transition-all ${
@@ -200,13 +144,13 @@ export default function CatalogGrid() {
             }`}
           >
             <Star className="w-3.5 h-3.5 fill-current" />
-            <span>Top Rated (4.8+)</span>
+            <span>Elite Rated (4.7+)</span>
           </button>
         </div>
 
         {/* Dynamic Items Counter */}
         <span className="text-xs font-semibold text-slate-400 dark:text-slate-500 font-mono-numbers">
-          Showing {filteredCatalog.length} products
+          Showing {filteredCatalog.length} gourmet options
         </span>
       </div>
 
@@ -214,8 +158,8 @@ export default function CatalogGrid() {
       {filteredCatalog.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-16 px-4 text-center bg-white dark:bg-slate-900/40 rounded-3xl border border-dashed border-slate-200 dark:border-slate-800">
           <AlertCircle className="w-10 h-10 text-orange-500/80 mb-3" />
-          <h4 className="text-base font-bold text-slate-900 dark:text-white font-display">No items match your filters</h4>
-          <p className="text-xs text-slate-400 mt-1 max-w-sm">Try resetting filters to discover all products.</p>
+          <h4 className="text-base font-bold text-slate-900 dark:text-white font-display">No dishes match your filters</h4>
+          <p className="text-xs text-slate-400 mt-1 max-w-sm">Try clearing your search query, changing your Veg/Non-Veg tab, or resetting filters to discover the mela menu!</p>
           <button
             onClick={() => {
               playNotificationSound('click');
@@ -233,36 +177,28 @@ export default function CatalogGrid() {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
           {filteredCatalog.map((item) => {
             const qty = getCartQuantity(item.id);
+            const isGrocery = item.type === 'grocery';
 
             return (
               <div
                 key={item.id}
-                className="group relative bg-white dark:bg-slate-900 rounded-3xl overflow-hidden border border-slate-100 dark:border-slate-850 hover:border-orange-500/20 dark:hover:border-orange-500/30 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300 flex flex-col"
+                className="group relative bg-white dark:bg-slate-900 rounded-3xl overflow-hidden border border-slate-100 dark:border-slate-850 hover:border-orange-500/15 dark:hover:border-orange-500/20 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300 flex flex-col"
               >
-                {/* Image Block */}
-                <div className="relative h-44 w-full overflow-hidden shrink-0 bg-slate-100 dark:bg-slate-800">
-                  {item.image ? (
-                    <img 
-                      src={item.image} 
-                      alt={item.name} 
-                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" 
-                      loading="lazy"
-                      onError={(e) => {
-                        (e.target as HTMLElement).style.display = 'none';
-                      }}
-                    />
-                  ) : null}
-                  <div className={`absolute inset-0 bg-gradient-to-br ${item.imageFallbackGradient} opacity-30 pointer-events-none`} />
+                {/* Image Block with Custom Gradients Fallback */}
+                <div className="relative h-44 w-full overflow-hidden shrink-0">
+                  <div className={`absolute inset-0 bg-gradient-to-br ${item.imageFallbackGradient} opacity-90`} />
                   
-                  {/* Category Emoji Overlay if no image or during load */}
-                  {!item.image && (
-                    <div className="absolute inset-0 flex items-center justify-center text-6xl transform group-hover:scale-110 transition-transform duration-500 pointer-events-none select-none">
-                      {getCuisineIcon(item.category)}
-                    </div>
-                  )}
+                  {/* Subtle Grid overlay for luxury pattern */}
+                  <div className="absolute inset-0 bg-[linear-gradient(to_right,rgba(255,255,255,0.06)_1px,transparent_1px),linear-gradient(to_bottom,rgba(255,255,255,0.06)_1px,transparent_1px)] bg-[size:14px_24px]" />
+                  
+                  {/* Centralized High Contrast Emoji / Icon Graphic */}
+                  <div className="absolute inset-0 flex items-center justify-center text-6xl transform group-hover:scale-110 transition-transform duration-500 pointer-events-none select-none">
+                    {getCuisineIcon(item.category)}
+                  </div>
 
                   {/* Corner Badges */}
                   <div className="absolute top-3 left-3 flex flex-col gap-1.5">
+                    {/* Veg/Non-veg small block */}
                     <span className="inline-flex items-center gap-1.5 px-2 py-1 rounded-lg bg-white/95 dark:bg-slate-900/95 backdrop-blur-md shadow-sm border border-slate-100 dark:border-slate-800">
                       <span className={`w-2 h-2 rounded-full ${item.isVeg ? 'bg-emerald-500' : 'bg-red-500'}`} />
                       <span className="text-[9px] font-black uppercase text-slate-800 dark:text-slate-200 tracking-wide">
@@ -270,6 +206,7 @@ export default function CatalogGrid() {
                       </span>
                     </span>
 
+                    {/* Bestseller Badge */}
                     {item.isBestseller && (
                       <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-gradient-to-r from-orange-500 to-amber-500 text-white font-extrabold text-[8px] uppercase tracking-wider shadow-sm animate-pulse">
                         <Sparkles className="w-2.5 h-2.5 fill-current" />
@@ -278,7 +215,7 @@ export default function CatalogGrid() {
                     )}
                   </div>
 
-                  {/* Preparation Time */}
+                  {/* Preparation Time / Delivery Indicator */}
                   <div className="absolute bottom-3 right-3 px-2 py-1 rounded-lg bg-black/40 backdrop-blur-md border border-white/10 text-white flex items-center gap-1 text-[10px] font-bold">
                     <Clock className="w-3 h-3 text-yellow-300" />
                     <span>{item.prepTime}</span>
@@ -292,9 +229,10 @@ export default function CatalogGrid() {
                   </div>
                 </div>
 
-                {/* Card Info */}
+                {/* Card Information Section */}
                 <div className="p-4 flex-1 flex flex-col justify-between space-y-3">
                   <div className="space-y-1">
+                    {/* Restaurant / Store metadata as clean unboxed text (anti-pill) */}
                     <div className="flex items-center gap-1.5 text-[10px] font-black uppercase text-slate-400 dark:text-slate-500 tracking-wider">
                       <span>{item.restaurant || 'Food Mela Special'}</span>
                       {item.unit && (
@@ -314,7 +252,7 @@ export default function CatalogGrid() {
                     </p>
                   </div>
 
-                  {/* Price & Add to Cart */}
+                  {/* Pricing and Action Counter */}
                   <div className="flex items-center justify-between border-t border-slate-50 dark:border-slate-800/60 pt-3">
                     <div className="flex items-baseline gap-1.5">
                       <span className="text-lg font-mono-numbers font-black text-slate-900 dark:text-white">
@@ -327,6 +265,7 @@ export default function CatalogGrid() {
                       )}
                     </div>
 
+                    {/* Add-to-cart or Customization Trigger */}
                     {qty > 0 ? (
                       <div className="flex items-center bg-orange-500 dark:bg-emerald-600 rounded-xl shadow-md p-0.5">
                         <button
