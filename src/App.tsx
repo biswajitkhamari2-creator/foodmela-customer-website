@@ -1,122 +1,148 @@
-import { useEffect, useState } from 'react';
-import { doc, onSnapshot } from 'firebase/firestore';
-import { db } from './firebase';
-import { BrowserRouter, Routes, Route, useNavigate, useLocation, Navigate } from 'react-router-dom';
-import { ShopProvider, useShop } from './store';
-import { DeliveryLocationProvider } from './components/location-context';
+/**
+ * @license
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+import React from 'react';
+import { AppProvider, useApp, playNotificationSound } from './context/AppContext';
 import Header from './components/Header';
-import Footer, { BottomNav } from './components/Footer';
+import HeroCarousel from './components/HeroCarousel';
+import CategoryBubbles from './components/CategoryBubbles';
+import CatalogGrid from './components/CatalogGrid';
 import CartDrawer from './components/CartDrawer';
-import LocationModal from './components/LocationModal';
-import Home from './pages/Home';
-import Grocery from './pages/Grocery';
-import Offers from './pages/Offers';
-import Info from './pages/Info';
-import Login from './pages/Login';
-import Apk from './pages/Apk';
-import RiderApk from './pages/RiderApk';
-import Orders from './pages/Orders';
-import Track from './pages/Track';
-import Profile from './pages/Profile';
-import Maintenance from './pages/Maintenance';
+import LoginModal from './components/LoginModal';
+import FoodCustomizerModal from './components/FoodCustomizerModal';
+import LiveTracker from './components/LiveTracker';
+import ProfileView from './components/ProfileView';
+import SearchTab from './components/SearchTab';
+import PolicyModal from './components/PolicyModal';
+import Footer from './components/Footer';
+import { Compass, Search, ShoppingBag, User, Home, Sparkles } from 'lucide-react';
 
-// 🛠️ Maintenance mode — Firestore: app_settings/maintenance { enabled, eta }.
-// Admin panel ke Settings page se live toggle hota hai, deploy ki zarurat nahi.
-function useMaintenance() {
-  const [state, setState] = useState({ enabled: false, eta: '30 min' });
-  useEffect(() => {
-    const unsub = onSnapshot(doc(db, 'app_settings', 'maintenance'), (snap) => {
-      if (snap.exists()) {
-        const d = snap.data();
-        setState({ enabled: d.enabled === true, eta: d.eta || '30 min' });
-      }
-    });
-    return () => unsub();
-  }, []);
-  return state;
-}
+function AppContent() {
+  const { activeTab, setActiveTab, user, itemCount, setCartDrawerOpen, setShowLoginModal } = useApp();
 
-// Routes, providers, cart state, auth flow — all unchanged.
-// Only the chrome (top strip, footer, bottom nav, location modal) is new.
-function Shell() {
-  const [cartOpen, setCartOpen] = useState(false);
-  const { user, cartCount, cartTotal } = useShop();
-  const nav = useNavigate();
-  const loc = useLocation();
-  // Cart requires login — guests are sent to the OTP login page instead
-  // of opening the drawer (matches the pre-redesign behaviour).
-  const openCart = () => {
-    if (!user) {
-      nav('/login');
-      return;
+  const renderActiveTab = () => {
+    switch (activeTab) {
+      case 'home':
+        return (
+          <div className="space-y-8">
+            {/* Promo Hero Carousel Banner */}
+            <HeroCarousel />
+            
+            {/* Category Bubbles horizontally scrollable list */}
+            <CategoryBubbles />
+            
+            {/* Catalog list */}
+            <div className="space-y-4">
+              <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-3">
+                <div>
+                  <div className="flex items-center gap-1.5 text-xs font-black uppercase tracking-wider text-orange-600 dark:text-orange-400">
+                    <Sparkles className="w-3.5 h-3.5" />
+                    <span>Verified Farm Fresh &amp; Essentials</span>
+                  </div>
+                  <h3 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white font-display uppercase tracking-tight">
+                    Food Mela Fresh Bazaar
+                  </h3>
+                </div>
+                <div className="text-xs font-bold text-slate-400">
+                  Birmaharajpur Express
+                </div>
+              </div>
+              <CatalogGrid />
+            </div>
+          </div>
+        );
+      case 'search':
+        return <SearchTab />;
+      case 'orders':
+        return <LiveTracker />;
+      case 'profile':
+        return <ProfileView />;
+      case 'cart':
+        return (
+          <div className="flex flex-col items-center justify-center py-20 text-center space-y-4 bg-white dark:bg-slate-900 rounded-3xl border border-slate-100 dark:border-slate-800">
+            <span className="text-5xl select-none">🛒</span>
+            <h4 className="text-lg font-bold text-slate-900 dark:text-white font-display">Manage your Order Items</h4>
+            <p className="text-xs text-slate-400 max-w-xs leading-relaxed">
+              Open the Sliding gourmet bag panel to check price breakdowns, apply discount codes, and choose instant payment.
+            </p>
+            <button
+              onClick={() => { playNotificationSound('click'); setCartDrawerOpen(true); }}
+              className="px-6 py-2.5 bg-orange-500 hover:bg-orange-600 text-white font-bold text-xs rounded-xl shadow-md"
+            >
+              Open Checkout Bag
+            </button>
+          </div>
+        );
+      default:
+        return null;
     }
-    setCartOpen(true);
   };
 
-  const showFloatingCart = cartCount > 0 && !cartOpen && loc.pathname !== '/login';
-
   return (
-    <>
-      <div className="top-strip">
-        🎉 <strong>Mela Fiesta is live!</strong> Free delivery over ₹299 · Now serving Birmaharajpur
+    <div className="min-h-screen pb-20 md:pb-0 bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-white transition-colors duration-300 flex flex-col justify-between">
+      
+      <div>
+        {/* 1. Top Promotion Bar */}
+        <div className="bg-gradient-to-r from-orange-600 via-amber-600 to-emerald-600 text-white text-[11px] font-bold py-1 px-4 text-center">
+          🎉 <span>Food Mela Online · 100% Farm Fresh Delivery across Birmaharajpur · Use code <strong>FEAST50</strong> for ₹50 OFF</span>
+        </div>
+
+        {/* 2. Header & Location Bar Navigation */}
+        <Header />
+
+        {/* 3. Main Layout Container Content Viewport */}
+        <main className="max-w-7xl mx-auto px-4 sm:px-6 py-6 md:py-8">
+          {renderActiveTab()}
+        </main>
       </div>
-      <Header onCartOpen={openCart} />
-      <main>
-        <Routes>
-          <Route path="/" element={<Home />} />
-          <Route path="/food" element={<Navigate to="/grocery" replace />} />
-          <Route path="/grocery" element={user ? <Grocery /> : <Navigate to="/login" replace />} />
-          <Route path="/restaurants" element={<Navigate to="/grocery" replace />} />
-          <Route path="/offers" element={user ? <Offers /> : <Navigate to="/login" replace />} />
-          <Route path="/page/:slug" element={<Info />} />
-          <Route path="/login" element={<Login />} />
-          <Route path="/apk" element={<Apk />} />
-          <Route path="/rider-apk" element={<RiderApk />} />
-          <Route path="/orders" element={user ? <Orders /> : <Navigate to="/login" replace />} />
-          <Route path="/track/:orderId" element={<Track />} />
-          <Route path="/profile" element={<Profile />} />
-          <Route path="*" element={<Info />} />
-        </Routes>
-      </main>
+
+      {/* 4. Desktop & Mobile Footer with Trust & Policies */}
       <Footer />
-      {Boolean(user) && <BottomNav onCartOpen={openCart} />}
-      {showFloatingCart && (
-        <aside
-          className="fm-floating-cart"
-          onClick={openCart}
-          role="button"
-          tabIndex={0}
-          aria-label={`View cart with ${cartCount} items totaling ₹${cartTotal}`}
-        >
-          <div className="floating-cart-info">
-            <span className="floating-cart-count">🛒 {cartCount} {cartCount === 1 ? 'ITEM' : 'ITEMS'}</span>
-            <span className="floating-cart-dot">•</span>
-            <span className="floating-cart-total">₹{cartTotal}</span>
-          </div>
-          <div className="floating-cart-btn">
-            <span>View Cart</span>
-            <span className="floating-cart-arrow">→</span>
-          </div>
-        </aside>
-      )}
-      <CartDrawer open={cartOpen} onClose={() => setCartOpen(false)} />
-      <LocationModal />
-    </>
+
+      {/* 5. Bottom Mobile Sticky Navigation Bar */}
+      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border-t border-slate-200 dark:border-slate-800 h-16 px-4 flex items-center justify-around pb-safe">
+        {[
+          { id: 'home', label: 'Bazaar', icon: <Home className="w-5 h-5" /> },
+          { id: 'search', label: 'Search', icon: <Search className="w-5 h-5" /> },
+          { id: 'orders', label: 'Tracking', icon: <Compass className="w-5 h-5" /> },
+          { id: 'profile', label: 'Profile', icon: <User className="w-5 h-5" /> },
+        ].map((tab) => {
+          const isActive = activeTab === tab.id;
+          return (
+            <button
+              key={tab.id}
+              onClick={() => { playNotificationSound('click'); setActiveTab(tab.id as any); }}
+              className={`flex flex-col items-center justify-center py-2 px-3 transition-colors ${
+                isActive 
+                  ? 'text-orange-500 dark:text-orange-400' 
+                  : 'text-slate-400 dark:text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
+              }`}
+            >
+              {tab.icon}
+              <span className="text-[9px] font-black tracking-tight mt-1 uppercase">
+                {tab.label}
+              </span>
+            </button>
+          );
+        })}
+      </nav>
+
+      {/* 6. Sliding Checkout Bag Drawers, Customizer, Modals */}
+      <CartDrawer />
+      <FoodCustomizerModal />
+      <LoginModal />
+      <PolicyModal />
+
+    </div>
   );
 }
 
 export default function App() {
-  const { enabled, eta } = useMaintenance();
-  if (enabled) {
-    return <Maintenance eta={eta} />;
-  }
   return (
-    <BrowserRouter>
-      <ShopProvider>
-        <DeliveryLocationProvider>
-          <Shell />
-        </DeliveryLocationProvider>
-      </ShopProvider>
-    </BrowserRouter>
+    <AppProvider>
+      <AppContent />
+    </AppProvider>
   );
 }
