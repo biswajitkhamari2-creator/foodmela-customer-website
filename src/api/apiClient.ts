@@ -759,11 +759,50 @@ export const apiClient = {
       console.error('Backend orders fetch notice:', e);
     }
 
-    // 2. Also check Firestore
+    // 2. Also check Firestore (both customerPhone and phone)
     try {
-      const q = query(collection(db, 'orders'), where('customerPhone', '==', cleanPhone));
-      const snap = await getDocs(q);
-      snap.forEach((d) => {
+      const q1 = query(collection(db, 'orders'), where('customerPhone', '==', cleanPhone));
+      const snap1 = await getDocs(q1);
+      snap1.forEach((d) => {
+        const o = d.data() as any;
+        const orderId = o.orderId || d.id;
+        if (!orderId || seenIds.has(orderId)) return;
+        seenIds.add(orderId);
+
+        let totalVal = Number(o.totalAmount) || Number(o.amountValue) || 0;
+        if (!totalVal && typeof o.total === 'string') {
+          totalVal = parseFloat(o.total.replace(/[^0-9.]/g, '')) || 0;
+        }
+
+        const items = parseOrderItems(o.items, totalVal);
+        const stage = typeof o.stage === 'number' ? o.stage : (o.status === 'delivered' || o.status === 'Delivered' ? 3 : 0);
+        let statusText: 'placed' | 'confirmed' | 'out_for_delivery' | 'delivered' = 'placed';
+        if (stage >= 3 || String(o.status || '').toLowerCase().includes('delivered')) statusText = 'delivered';
+        else if (stage === 2 || String(o.status || '').toLowerCase().includes('out for delivery')) statusText = 'out_for_delivery';
+        else if (stage === 1 || String(o.status || '').toLowerCase().includes('accept') || String(o.status || '').toLowerCase().includes('pack')) statusText = 'confirmed';
+
+        ordersList.push({
+          id: orderId,
+          items,
+          totalAmount: totalVal,
+          status: statusText,
+          paymentMethod: o.paymentMethod || 'Cash on Delivery',
+          paymentStatus: 'paid',
+          createdAt: 'Today',
+          deliveryAddress: o.address || 'Birmaharajpur, Subarnapur, Odisha',
+          otp: o.deliveryOtp || o.otp || '',
+          timeline: [
+            { stage: 'Order Placed', timestamp: 'Just now', completed: true },
+            { stage: 'Packed by Merchant', timestamp: 'In progress', completed: stage >= 1 },
+            { stage: 'Out for Delivery', timestamp: 'Estimated in 15 min', completed: stage >= 2 },
+            { stage: 'Delivered', timestamp: 'Pending', completed: stage >= 3 },
+          ],
+        });
+      });
+
+      const q2 = query(collection(db, 'orders'), where('phone', '==', cleanPhone));
+      const snap2 = await getDocs(q2);
+      snap2.forEach((d) => {
         const o = d.data() as any;
         const orderId = o.orderId || d.id;
         if (!orderId || seenIds.has(orderId)) return;
