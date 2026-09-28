@@ -166,6 +166,11 @@ export default function LoginModal() {
       fullName = `Customer (${phone.slice(-4)})`;
     }
 
+    // Ensure backend token is minted & stored
+    try {
+      await apiClient.phoneLogin(phone, fullName, address);
+    } catch { /* ignore */ }
+
     completeLogin(phone, fullName, address);
   };
 

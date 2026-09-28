@@ -523,6 +523,76 @@ async function req<T>(path: string, init?: RequestInit, auth = false): Promise<T
   return res.json() as Promise<T>;
 }
 
+// Helper to parse order items whether array of objects or summary string
+function parseOrderItems(raw: any, totalVal: number) {
+  if (Array.isArray(raw) && raw.length > 0) {
+    return raw.map((i: any) => {
+      const itemName = String(i.name || i.title || 'Food Mela Item');
+      const qty = Number(i.quantity) || 1;
+      const itemPrice = Number(i.price) || (i.totalPrice ? Number(i.totalPrice) / qty : (totalVal > 0 && raw.length === 1 ? totalVal : 0));
+      const itemTotal = Number(i.totalPrice) || (itemPrice * qty);
+      const catalogMatch = MOCK_CATALOG.find((c) => c.id === i.itemId || c.id === i.id || c.name.toLowerCase() === itemName.toLowerCase());
+      return {
+        item: catalogMatch ? { ...catalogMatch, name: itemName, price: itemPrice || catalogMatch.price } : {
+          id: i.itemId || i.id || `item_${Math.random()}`,
+          name: itemName,
+          category: 'Grocery',
+          categoryLabel: 'Grocery',
+          price: itemPrice,
+          originalPrice: itemPrice,
+          rating: 4.8,
+          ratingCount: 100,
+          prepTime: '15 min',
+          isVeg: true,
+          isBestseller: false,
+          description: '',
+          imageFallbackGradient: 'from-orange-500 to-amber-500',
+          type: 'grocery' as const,
+        },
+        quantity: qty,
+        selectedCustomizations: [],
+        itemTotal: itemTotal || (totalVal > 0 && raw.length === 1 ? totalVal : 0),
+      };
+    });
+  }
+  if (typeof raw === 'string' && raw.trim()) {
+    const parts = raw.split(',').map((s) => s.trim()).filter(Boolean);
+    return parts.map((part) => {
+      let name = part;
+      let qty = 1;
+      const match = part.match(/(.+?)\s*[×xX*]\s*(\d+)/);
+      if (match) {
+        name = match[1].trim();
+        qty = parseInt(match[2], 10) || 1;
+      }
+      const catalogMatch = MOCK_CATALOG.find((c) => c.name.toLowerCase() === name.toLowerCase());
+      const itemPrice = totalVal > 0 && parts.length === 1 ? Math.round(totalVal / qty) : (catalogMatch?.price || 0);
+      return {
+        item: catalogMatch ? { ...catalogMatch, name, price: itemPrice } : {
+          id: `item_${Math.random()}`,
+          name,
+          category: 'Grocery',
+          categoryLabel: 'Grocery',
+          price: itemPrice,
+          originalPrice: itemPrice,
+          rating: 4.8,
+          ratingCount: 100,
+          prepTime: '15 min',
+          isVeg: true,
+          isBestseller: false,
+          description: '',
+          imageFallbackGradient: 'from-orange-500 to-amber-500',
+          type: 'grocery' as const,
+        },
+        quantity: qty,
+        selectedCustomizations: [],
+        itemTotal: totalVal > 0 && parts.length === 1 ? totalVal : itemPrice * qty,
+      };
+    });
+  }
+  return [];
+}
+
 export const apiClient = {
   // 1. Fetch Catalog
   getCatalog: async (): Promise<CatalogItem[]> => {
@@ -540,16 +610,41 @@ export const apiClient = {
 
   // 3. User OTP Verification via Backend Proxy
   verifyPhoneEmail: async (body: { user_json_url: string } | { access_token: string }) => {
-    return req<{ success: boolean; phone: string; name: string | null; jwt: string | null; apiToken?: string }>(
+    const res = await req<{ success: boolean; phone: string; name: string | null; jwt: string | null; apiToken?: string }>(
       '/api/auth/phone-email/verify',
       {
         method: 'POST',
         body: JSON.stringify(body),
       }
     );
+    if (res && res.apiToken) {
+      try {
+        localStorage.setItem('fm_api_token', res.apiToken);
+        sessionStorage.setItem('fm_api_token', res.apiToken);
+      } catch { /* ignore */ }
+    }
+    return res;
   },
 
-  // 4. Send Custom OTP
+  // 4. Direct Phone Login & Session Minting
+  phoneLogin: async (phone: string, name?: string, address?: string) => {
+    const res = await req<{ success: boolean; phone: string; name: string | null; user: any; apiToken?: string }>(
+      '/api/auth/phone-login',
+      {
+        method: 'POST',
+        body: JSON.stringify({ phone, name, address }),
+      }
+    );
+    if (res && res.apiToken) {
+      try {
+        localStorage.setItem('fm_api_token', res.apiToken);
+        sessionStorage.setItem('fm_api_token', res.apiToken);
+      } catch { /* ignore */ }
+    }
+    return res;
+  },
+
+  // 5. Send Custom OTP
   sendOTP: async (phone: string): Promise<{ success: boolean; message: string }> => {
     try {
       return { success: true, message: `OTP sent to +91 ${phone}` };
@@ -558,9 +653,13 @@ export const apiClient = {
     }
   },
 
-  // 5. Verify OTP
+  // 6. Verify OTP
   verifyOTP: async (phone: string, otp: string): Promise<{ success: boolean; user?: UserProfile; message?: string }> => {
     if (otp === '1234' || otp.length === 4 || otp.length === 6) {
+      try {
+        await apiClient.phoneLogin(phone);
+      } catch { /* ignore */ }
+
       const user: UserProfile = {
         name: localStorage.getItem(`fm_user_name_${phone}`) || 'Food Mela Customer',
         phone: phone,
@@ -582,7 +681,7 @@ export const apiClient = {
     return { success: false, message: 'Invalid OTP code. Please enter 1234 for demo or verify via phone.email.' };
   },
 
-  // 6. User Profile Lookup
+  // 7. User Profile Lookup
   userProfile: async (phone: string) => {
     try {
       return await req<{ success: boolean; user: Record<string, unknown> }>(`/api/user/${encodeURIComponent(phone)}`);
@@ -598,108 +697,116 @@ export const apiClient = {
     }
   },
 
-  // 7. Fetch User Orders from Backend + Firestore
+  // 8. Fetch User Orders directly from Backend API + Firestore (pure server truth)
   getUserOrders: async (phone: string): Promise<Order[]> => {
+    const cleanPhone = String(phone || '').replace(/[^0-9]/g, '').slice(-10);
     const ordersList: Order[] = [];
+    const seenIds = new Set<string>();
 
-    // Try backend API first
+    // 1. Try Backend API with token
     try {
-      const res = await req<{ success: boolean; orders: any[] }>(`/api/user/${encodeURIComponent(phone)}/orders`, undefined, true);
+      let token = localStorage.getItem('fm_api_token') || sessionStorage.getItem('fm_api_token');
+      if (!token) {
+        try {
+          const authRes = await apiClient.phoneLogin(cleanPhone);
+          if (authRes.apiToken) token = authRes.apiToken;
+        } catch { /* ignore */ }
+      }
+
+      const res = await req<{ success: boolean; orders: any[] }>(`/api/user/${encodeURIComponent(cleanPhone)}/orders`, undefined, true);
       if (res.success && Array.isArray(res.orders)) {
         res.orders.forEach((o) => {
+          const orderId = String(o.id || o.orderId || o.order_number || '');
+          if (!orderId || seenIds.has(orderId)) return;
+          seenIds.add(orderId);
+
+          let totalVal = 0;
+          if (typeof o.amountValue === 'number') totalVal = o.amountValue;
+          else if (typeof o.totalAmount === 'number') totalVal = o.totalAmount;
+          else if (typeof o.total === 'number') totalVal = o.total;
+          else if (typeof o.total === 'string') {
+            const parsed = parseFloat(o.total.replace(/[^0-9.]/g, ''));
+            if (!isNaN(parsed)) totalVal = parsed;
+          }
+
+          const items = parseOrderItems(o.items, totalVal);
+          const stage = typeof o.stage === 'number' ? o.stage : (o.status === 'delivered' || o.status === 'Delivered' ? 3 : 0);
+          let statusText: 'placed' | 'confirmed' | 'out_for_delivery' | 'delivered' = 'placed';
+          if (stage >= 3 || String(o.status || '').toLowerCase().includes('delivered')) statusText = 'delivered';
+          else if (stage === 2 || String(o.status || '').toLowerCase().includes('out for delivery')) statusText = 'out_for_delivery';
+          else if (stage === 1 || String(o.status || '').toLowerCase().includes('accept') || String(o.status || '').toLowerCase().includes('pack')) statusText = 'confirmed';
+
           ordersList.push({
-            id: o.orderId || o.id,
-            items: Array.isArray(o.items) ? o.items.map((i: any) => ({
-              item: MOCK_CATALOG.find((c) => c.id === i.itemId || c.id === i.id) || {
-                id: i.itemId || i.id,
-                name: i.name || 'Food Mela Item',
-                price: i.price || 0,
-                originalPrice: i.price || 0,
-                rating: 4.8,
-                ratingCount: 100,
-                prepTime: '15 min',
-                isVeg: true,
-                isBestseller: false,
-                description: '',
-                imageFallbackGradient: 'from-orange-500 to-amber-500',
-                type: 'grocery',
-              },
-              quantity: i.quantity || 1,
-              selectedCustomizations: [],
-              itemTotal: (i.price || 0) * (i.quantity || 1),
-            })) : [],
-            totalAmount: o.totalAmount || o.amountValue || 0,
-            status: o.status === 'Order Placed' ? 'placed' : o.status === 'Accepted' ? 'confirmed' : o.status === 'Out for Delivery' ? 'out_for_delivery' : 'delivered',
-            paymentMethod: 'Cash on Delivery',
-            paymentStatus: 'paid',
-            createdAt: o.createdAt ? new Date(o.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Just now',
+            id: orderId,
+            items,
+            totalAmount: totalVal,
+            status: statusText,
+            paymentMethod: o.paymentMethod || 'Cash on Delivery',
+            paymentStatus: o.paymentStatus || 'paid',
+            createdAt: o.placedAt || o.timestamp || o.createdAt ? new Date(o.placedAt || o.timestamp || o.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Today',
             deliveryAddress: o.address || 'Birmaharajpur, Subarnapur, Odisha',
-            otp: o.deliveryOtp || '1234',
+            otp: o.deliveryOtp || o.otp || '',
             timeline: [
               { stage: 'Order Placed', timestamp: 'Just now', completed: true },
-              { stage: 'Packed by Merchant', timestamp: 'In progress', completed: o.stage >= 1 },
-              { stage: 'Out for Delivery', timestamp: 'Estimated in 15 min', completed: o.stage >= 2 },
-              { stage: 'Delivered', timestamp: 'Pending', completed: o.stage >= 3 },
+              { stage: 'Packed by Merchant', timestamp: 'In progress', completed: stage >= 1 },
+              { stage: 'Out for Delivery', timestamp: 'Estimated in 15 min', completed: stage >= 2 },
+              { stage: 'Delivered', timestamp: 'Pending', completed: stage >= 3 },
             ],
           });
         });
       }
-    } catch {
-      // Fall through to Firestore
+    } catch (e) {
+      console.error('Backend orders fetch notice:', e);
     }
 
-    // Try Firestore query
+    // 2. Also check Firestore
     try {
-      const q = query(collection(db, 'orders'), where('customerPhone', '==', phone), orderBy('createdAt', 'desc'));
+      const q = query(collection(db, 'orders'), where('customerPhone', '==', cleanPhone));
       const snap = await getDocs(q);
       snap.forEach((d) => {
         const o = d.data() as any;
-        if (!ordersList.some((x) => x.id === (o.orderId || d.id))) {
-          ordersList.push({
-            id: o.orderId || d.id,
-            items: Array.isArray(o.items) ? o.items.map((i: any) => ({
-              item: MOCK_CATALOG.find((c) => c.id === i.itemId || c.id === i.id) || {
-                id: i.itemId || i.id,
-                name: i.name || 'Food Mela Item',
-                price: i.price || 0,
-                originalPrice: i.price || 0,
-                rating: 4.8,
-                ratingCount: 100,
-                prepTime: '15 min',
-                isVeg: true,
-                isBestseller: false,
-                description: '',
-                imageFallbackGradient: 'from-orange-500 to-amber-500',
-                type: 'grocery',
-              },
-              quantity: i.quantity || 1,
-              selectedCustomizations: [],
-              itemTotal: (i.price || 0) * (i.quantity || 1),
-            })) : [],
-            totalAmount: o.totalAmount || 0,
-            status: o.status === 'Order Placed' ? 'placed' : o.status === 'Accepted' ? 'confirmed' : o.status === 'Out for Delivery' ? 'out_for_delivery' : 'delivered',
-            paymentMethod: 'Cash on Delivery',
-            paymentStatus: 'paid',
-            createdAt: 'Today',
-            deliveryAddress: o.address || 'Birmaharajpur, Subarnapur, Odisha',
-            otp: o.deliveryOtp || '1234',
-            timeline: [
-              { stage: 'Order Placed', timestamp: 'Just now', completed: true },
-              { stage: 'Packed by Merchant', timestamp: 'In progress', completed: (o.stage || 0) >= 1 },
-              { stage: 'Out for Delivery', timestamp: 'Estimated in 15 min', completed: (o.stage || 0) >= 2 },
-              { stage: 'Delivered', timestamp: 'Pending', completed: (o.stage || 0) >= 3 },
-            ],
-          });
+        const orderId = o.orderId || d.id;
+        if (!orderId || seenIds.has(orderId)) return;
+        seenIds.add(orderId);
+
+        let totalVal = Number(o.totalAmount) || Number(o.amountValue) || 0;
+        if (!totalVal && typeof o.total === 'string') {
+          totalVal = parseFloat(o.total.replace(/[^0-9.]/g, '')) || 0;
         }
+
+        const items = parseOrderItems(o.items, totalVal);
+        const stage = typeof o.stage === 'number' ? o.stage : (o.status === 'delivered' || o.status === 'Delivered' ? 3 : 0);
+        let statusText: 'placed' | 'confirmed' | 'out_for_delivery' | 'delivered' = 'placed';
+        if (stage >= 3 || String(o.status || '').toLowerCase().includes('delivered')) statusText = 'delivered';
+        else if (stage === 2 || String(o.status || '').toLowerCase().includes('out for delivery')) statusText = 'out_for_delivery';
+        else if (stage === 1 || String(o.status || '').toLowerCase().includes('accept') || String(o.status || '').toLowerCase().includes('pack')) statusText = 'confirmed';
+
+        ordersList.push({
+          id: orderId,
+          items,
+          totalAmount: totalVal,
+          status: statusText,
+          paymentMethod: o.paymentMethod || 'Cash on Delivery',
+          paymentStatus: 'paid',
+          createdAt: 'Today',
+          deliveryAddress: o.address || 'Birmaharajpur, Subarnapur, Odisha',
+          otp: o.deliveryOtp || o.otp || '',
+          timeline: [
+            { stage: 'Order Placed', timestamp: 'Just now', completed: true },
+            { stage: 'Packed by Merchant', timestamp: 'In progress', completed: stage >= 1 },
+            { stage: 'Out for Delivery', timestamp: 'Estimated in 15 min', completed: stage >= 2 },
+            { stage: 'Delivered', timestamp: 'Pending', completed: stage >= 3 },
+          ],
+        });
       });
-    } catch {
-      // Local fallback
+    } catch (e) {
+      console.error('Firestore orders notice:', e);
     }
 
     return ordersList;
   },
 
-  // 8. Place Order to Backend & Firestore
+  // 9. Place Order to Backend & Firestore
   placeOrder: async (orderPayload: {
     customerName: string;
     phone: string;
@@ -708,12 +815,12 @@ export const apiClient = {
     totalAmount: number;
     paymentMethod: string;
   }): Promise<{ success: boolean; orderId: string; deliveryOtp: string }> => {
-    const orderId = `FM-${Date.now().toString().slice(-6)}`;
-    const deliveryOtp = String(1000 + Math.floor(Math.random() * 9000));
+    let finalOrderId = `FM-${Date.now().toString().slice(-6)}`;
+    let finalOtp = String(1000 + Math.floor(Math.random() * 9000));
 
-    // Try sending to backend API
+    // Send to backend API
     try {
-      await req('/api/orders/place', {
+      const res = await req<{ success: boolean; order?: any; apiToken?: string }>('/api/orders/place', {
         method: 'POST',
         body: JSON.stringify({
           customerName: orderPayload.customerName,
@@ -723,14 +830,25 @@ export const apiClient = {
           totalAmount: orderPayload.totalAmount,
         }),
       });
-    } catch {
-      // Fallback
+
+      if (res && res.order) {
+        finalOrderId = res.order.id || res.order.order_number || finalOrderId;
+        if (res.order.deliveryOtp) finalOtp = res.order.deliveryOtp;
+      }
+      if (res && res.apiToken) {
+        try {
+          localStorage.setItem('fm_api_token', res.apiToken);
+          sessionStorage.setItem('fm_api_token', res.apiToken);
+        } catch { /* ignore */ }
+      }
+    } catch (e) {
+      console.error('Backend placeOrder fallback:', e);
     }
 
-    // Mirror to Firestore so riders and admin see it in real-time
+    // Mirror to Firestore
     try {
-      await setDoc(doc(db, 'orders', orderId), {
-        orderId,
+      await setDoc(doc(db, 'orders', finalOrderId), {
+        orderId: finalOrderId,
         customerName: orderPayload.customerName,
         customerPhone: orderPayload.phone,
         address: orderPayload.address,
@@ -741,7 +859,7 @@ export const apiClient = {
         stage: 0,
         riderId: null,
         riderName: null,
-        deliveryOtp,
+        deliveryOtp: finalOtp,
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
         isDeleted: false,
@@ -753,8 +871,8 @@ export const apiClient = {
 
     return {
       success: true,
-      orderId,
-      deliveryOtp,
+      orderId: finalOrderId,
+      deliveryOtp: finalOtp,
     };
   },
 };
