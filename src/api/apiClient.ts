@@ -892,6 +892,8 @@ export const apiClient = {
     try {
       await setDoc(doc(db, 'orders', finalOrderId), {
         orderId: finalOrderId,
+        order_number: finalOrderId,
+        clientRef: finalOrderId,
         customerName: orderPayload.customerName,
         customerPhone: orderPayload.phone,
         address: orderPayload.address,
