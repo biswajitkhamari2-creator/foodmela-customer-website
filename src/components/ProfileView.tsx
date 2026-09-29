@@ -279,10 +279,10 @@ export default function ProfileView() {
           <div className="p-4 rounded-2xl bg-orange-500/5 dark:bg-orange-500/10 border border-orange-500/20 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div className="space-y-0.5">
               <span className="text-[10px] font-black uppercase tracking-wider text-orange-600 dark:text-orange-400">
-                Help &amp; Grievance Support Desk
+                Customer Support &amp; Help Desk
               </span>
               <p className="text-xs font-bold text-slate-900 dark:text-white">
-                Officer: Jitendriya Amat (+91 8144503650)
+                Helpline: +91 8144503650 (7:00 AM – 10:30 PM)
               </p>
             </div>
             <a

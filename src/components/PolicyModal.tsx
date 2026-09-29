@@ -16,7 +16,7 @@ export default function PolicyModal() {
     { key: 'privacy', label: 'Privacy Policy', emoji: '🔒' },
     { key: 'disclaimer', label: 'Food Safety & Disclaimer', emoji: '⚖️' },
     { key: 'shipping', label: 'Shipping & Delivery', emoji: '🛵' },
-    { key: 'contact', label: 'Contact & Grievance', emoji: '📞' },
+    { key: 'contact', label: 'Contact Support', emoji: '📞' },
     { key: 'about', label: 'About Us', emoji: '🍽️' },
     { key: 'partner', label: 'Partner With Us', emoji: '🤝' },
   ];

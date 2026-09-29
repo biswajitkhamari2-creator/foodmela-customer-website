@@ -113,7 +113,7 @@ export default function Footer() {
               </li>
               <li>
                 <button onClick={() => openPolicy('contact')} className="hover:text-orange-600 dark:hover:text-orange-400 transition-colors flex items-center gap-1.5">
-                  <span>📞</span> Contact & Grievance Cell
+                  <span>📞</span> Help & Customer Support
                 </button>
               </li>
               <li>
@@ -129,7 +129,7 @@ export default function Footer() {
             </ul>
           </div>
 
-          {/* Col 4: Service Area & Grievance */}
+          {/* Col 4: Service Area */}
           <div className="space-y-3">
             <h4 className="text-xs font-black uppercase tracking-wider text-slate-900 dark:text-white font-display">
               Service Location
@@ -141,7 +141,7 @@ export default function Footer() {
                 Delivery Hours: 7:00 AM – 10:30 PM.
               </p>
               <div className="pt-2 border-t border-slate-200 dark:border-slate-700 text-[11px] text-slate-500">
-                Grievance Officer: Jitendriya Amat (<a href="tel:8144503650" className="text-orange-600 dark:text-orange-400 font-bold">8144503650</a>)
+                Direct Helpline: <a href="tel:8144503650" className="text-orange-600 dark:text-orange-400 font-bold">+91 8144503650</a>
               </div>
             </div>
           </div>
