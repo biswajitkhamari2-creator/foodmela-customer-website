@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { CatalogItem, CartItem, Coupon, Order, UserProfile, SelectedCustomization } from '../types';
-import { apiClient, MOCK_CATALOG, MOCK_COUPONS } from '../api/apiClient';
+import { apiClient, submitPayUForm, MOCK_CATALOG, MOCK_COUPONS } from '../api/apiClient';
 
 // Premium Audio Synthesis for App Sound Effects
 export const playNotificationSound = (type: 'success' | 'click' | 'remove') => {
@@ -403,7 +403,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     playNotificationSound('success');
   };
 
-  // Place order to backend & Firestore
+  // Place order to backend & Firestore or redirect to PayU for online payment
   const placeOrder = async (paymentMethod: string, customAddress?: string): Promise<boolean> => {
     if (cart.length === 0) return false;
 
@@ -414,6 +414,28 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     const deliveryAddress = customAddress || user.address || currentLocation || 'Birmaharajpur, Subarnapur, Odisha - 767018';
 
+    // ─── 1. REAL PAYU ONLINE PAYMENT REDIRECT (UPI & CARD) ─────────────────────
+    if (paymentMethod === 'UPI' || paymentMethod === 'CARD') {
+      const itemsSummary = cart.map((ci) => `${ci.quantity}x ${ci.item.name}`).join(', ');
+      
+      const payuRes = await apiClient.initiatePayU({
+        customerName: user.name || 'Food Mela Customer',
+        phone: user.phone,
+        email: user.email || '',
+        address: deliveryAddress,
+        items: itemsSummary,
+        totalAmount: grandTotal,
+      });
+
+      if (payuRes.success && payuRes.payuUrl && payuRes.fields) {
+        playNotificationSound('success');
+        // Instantly submit POST form to PayU gateway server
+        submitPayUForm(payuRes.payuUrl, payuRes.fields);
+        return true;
+      }
+    }
+
+    // ─── 2. CASH ON DELIVERY (COD) OR FALLBACK ─────────────────────────────────
     const payload = {
       customerName: user.name || 'Food Mela Customer',
       phone: user.phone,

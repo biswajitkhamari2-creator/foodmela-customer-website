@@ -20,7 +20,28 @@ import Footer from './components/Footer';
 import { Compass, Search, ShoppingBag, User, Home, Sparkles, Lock, ArrowRight, ShieldCheck, Phone } from 'lucide-react';
 
 function AppContent() {
-  const { activeTab, setActiveTab, user, itemCount, setCartDrawerOpen, setShowLoginModal } = useApp();
+  const { activeTab, setActiveTab, user, itemCount, setCartDrawerOpen, setShowLoginModal, clearCart, refreshOrders } = useApp();
+  const [paymentNotice, setPaymentNotice] = React.useState<string | null>(null);
+
+  React.useEffect(() => {
+    try {
+      const search = window.location.search;
+      const path = window.location.pathname;
+      const params = new URLSearchParams(search);
+
+      if (params.get('paid') === '1' || path.includes('/track/')) {
+        clearCart();
+        setActiveTab('orders');
+        refreshOrders();
+        window.history.replaceState({}, '', '/');
+      } else if (params.get('payment_error')) {
+        const err = params.get('payment_error');
+        setPaymentNotice(`Online payment notice: ${decodeURIComponent(err || 'Payment was not completed')}. You can re-try or select Cash on Delivery.`);
+        setCartDrawerOpen(true);
+        window.history.replaceState({}, '', '/');
+      }
+    } catch { /* ignore */ }
+  }, []);
 
   const renderActiveTab = () => {
     // 🔒 Login Barrier Enforced: Guest visitors are shown an inviting login barrier
@@ -166,6 +187,13 @@ function AppContent() {
         <div className="bg-gradient-to-r from-orange-600 via-amber-600 to-emerald-600 text-white text-[10px] sm:text-[11px] font-bold py-1 px-2 sm:px-4 text-center truncate">
           🎉 <span>Food Mela Online · 100% Farm Fresh Delivery in Birmaharajpur · Code <strong>FEAST50</strong> for ₹50 OFF</span>
         </div>
+
+        {paymentNotice && (
+          <div className="bg-red-500 text-white text-xs font-bold py-2 px-4 flex items-center justify-between">
+            <span>⚠️ {paymentNotice}</span>
+            <button onClick={() => setPaymentNotice(null)} className="ml-2 font-black text-sm">✕</button>
+          </div>
+        )}
 
         {/* 2. Header & Location Bar Navigation */}
         <Header />

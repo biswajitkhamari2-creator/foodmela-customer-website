@@ -924,4 +924,48 @@ export const apiClient = {
       deliveryOtp: finalOtp,
     };
   },
+
+  // 10. PayU Gateway Initiation
+  initiatePayU: async (orderPayload: {
+    customerName: string;
+    phone: string;
+    email?: string;
+    address: string;
+    items: string;
+    totalAmount: number;
+    orderId?: string;
+  }): Promise<{ success: boolean; payuUrl?: string; fields?: Record<string, string>; error?: string }> => {
+    try {
+      const res = await req<{ success: boolean; payuUrl: string; fields: Record<string, string>; error?: string }>('/api/payu/initiate', {
+        method: 'POST',
+        body: JSON.stringify(orderPayload),
+      });
+      return res;
+    } catch (e: any) {
+      console.error('PayU initiation error:', e);
+      return { success: false, error: e?.message || 'Failed to initiate PayU payment' };
+    }
+  },
 };
+
+/**
+ * Submits a standard POST form to redirect browser directly to PayU gateway server
+ */
+export const submitPayUForm = (payuUrl: string, fields: Record<string, string>) => {
+  const form = document.createElement('form');
+  form.method = 'POST';
+  form.action = payuUrl;
+  form.style.display = 'none';
+
+  Object.entries(fields).forEach(([k, v]) => {
+    const input = document.createElement('input');
+    input.type = 'hidden';
+    input.name = k;
+    input.value = String(v ?? '');
+    form.appendChild(input);
+  });
+
+  document.body.appendChild(form);
+  form.submit();
+};
+

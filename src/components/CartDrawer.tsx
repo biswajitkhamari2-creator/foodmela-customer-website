@@ -507,17 +507,22 @@ export default function CartDrawer() {
                   {isPlacing ? (
                     <>
                       <Loader2 className="w-4 h-4 animate-spin shrink-0" />
-                      <span>Connecting order...</span>
+                      <span>{paymentMethod === 'COD' ? 'Confirming Order...' : 'Redirecting to PayU Server...'}</span>
                     </>
                   ) : !user ? (
                     <>
                       <Phone className="w-4 h-4 shrink-0" />
-                      <span>Sign In & Place Order · ₹{grandTotal}</span>
+                      <span>Sign In & Continue · ₹{grandTotal}</span>
+                    </>
+                  ) : paymentMethod === 'COD' ? (
+                    <>
+                      <CheckCircle className="w-4 h-4 shrink-0" />
+                      <span>Place Cash on Delivery · ₹{grandTotal}</span>
                     </>
                   ) : (
                     <>
-                      <CheckCircle className="w-4 h-4 shrink-0" />
-                      <span>Place Order · ₹{grandTotal}</span>
+                      <CreditCard className="w-4 h-4 shrink-0" />
+                      <span>Pay Online via PayU · ₹{grandTotal}</span>
                     </>
                   )}
                 </button>
