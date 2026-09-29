@@ -180,19 +180,23 @@ export default function LoginModal() {
     setBusy(false);
     setStep('');
 
+    const defaultAddrs = [
+      {
+        id: 'addr_1',
+        tag: 'Home' as const,
+        label: 'Home' as const,
+        addressLine: address,
+        city: 'Birmaharajpur',
+        isDefault: true,
+      },
+    ];
+
     const profile = {
       name,
       phone,
       address,
-      addresses: [
-        {
-          id: 'addr_1',
-          tag: 'Home' as const,
-          addressLine: address,
-          city: 'Birmaharajpur',
-          isDefault: true,
-        },
-      ],
+      addresses: defaultAddrs,
+      savedAddresses: defaultAddrs,
       isGoldMember: true,
       totalSaved: 380,
     };

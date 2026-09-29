@@ -84,15 +84,22 @@ export interface Order {
   createdAt: string;
 }
 
+export interface UserAddress {
+  id: string;
+  label?: string;
+  tag?: string;
+  addressLine: string;
+  city: string;
+  isDefault?: boolean;
+}
+
 export interface UserProfile {
   phone: string;
   name?: string;
   email?: string;
+  address?: string;
   isGoldMember: boolean;
-  savedAddresses: {
-    id: string;
-    label: 'Home' | 'Work' | 'Other';
-    addressLine: string;
-    city: string;
-  }[];
+  totalSaved?: number;
+  addresses?: UserAddress[];
+  savedAddresses?: UserAddress[];
 }

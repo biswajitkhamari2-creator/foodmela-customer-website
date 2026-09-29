@@ -159,19 +159,19 @@ function AppContent() {
   };
 
   return (
-    <div className="min-h-screen pb-20 md:pb-0 bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-white transition-colors duration-300 flex flex-col justify-between">
+    <div className="min-h-screen pb-20 md:pb-0 bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-white transition-colors duration-300 flex flex-col justify-between overflow-x-hidden max-w-full w-full">
       
-      <div>
+      <div className="w-full max-w-full overflow-x-hidden">
         {/* 1. Top Promotion Bar */}
-        <div className="bg-gradient-to-r from-orange-600 via-amber-600 to-emerald-600 text-white text-[11px] font-bold py-1 px-4 text-center">
-          🎉 <span>Food Mela Online · 100% Farm Fresh Delivery across Birmaharajpur · Use code <strong>FEAST50</strong> for ₹50 OFF</span>
+        <div className="bg-gradient-to-r from-orange-600 via-amber-600 to-emerald-600 text-white text-[10px] sm:text-[11px] font-bold py-1 px-2 sm:px-4 text-center truncate">
+          🎉 <span>Food Mela Online · 100% Farm Fresh Delivery in Birmaharajpur · Code <strong>FEAST50</strong> for ₹50 OFF</span>
         </div>
 
         {/* 2. Header & Location Bar Navigation */}
         <Header />
 
         {/* 3. Main Layout Container Content Viewport */}
-        <main className="max-w-7xl mx-auto px-4 sm:px-6 py-6 md:py-8">
+        <main className="max-w-7xl mx-auto px-3 sm:px-6 py-4 md:py-8 w-full overflow-x-hidden">
           {renderActiveTab()}
         </main>
       </div>
@@ -217,10 +217,53 @@ function AppContent() {
   );
 }
 
+class ErrorBoundary extends React.Component<{ children: React.ReactNode }, { hasError: boolean; error: any }> {
+  constructor(props: any) {
+    super(props);
+    this.state = { hasError: false, error: null };
+  }
+
+  static getDerivedStateFromError(error: any) {
+    return { hasError: true, error };
+  }
+
+  componentDidCatch(error: any, errorInfo: any) {
+    console.error('Food Mela UI Error Boundary caught:', error, errorInfo);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="min-h-screen flex items-center justify-center p-6 bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-white">
+          <div className="max-w-md w-full bg-white dark:bg-slate-900 p-8 rounded-3xl shadow-xl text-center space-y-4 border border-slate-200 dark:border-slate-800">
+            <span className="text-5xl select-none">🍲</span>
+            <h3 className="text-xl font-bold font-display">Something went slightly off</h3>
+            <p className="text-xs text-slate-500 dark:text-slate-400">
+              Your bag items are safe. Tap below to reload the app seamlessly.
+            </p>
+            <button
+              onClick={() => {
+                this.setState({ hasError: false });
+                window.location.reload();
+              }}
+              className="px-6 py-3 bg-gradient-to-r from-orange-500 to-amber-500 text-white font-bold text-xs uppercase tracking-wider rounded-xl shadow-md transition-all active:scale-95"
+            >
+              Reload Food Mela
+            </button>
+          </div>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+
 export default function App() {
   return (
-    <AppProvider>
-      <AppContent />
-    </AppProvider>
+    <ErrorBoundary>
+      <AppProvider>
+        <AppContent />
+      </AppProvider>
+    </ErrorBoundary>
   );
 }

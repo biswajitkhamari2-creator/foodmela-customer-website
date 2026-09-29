@@ -105,28 +105,28 @@ export default function CatalogGrid() {
   return (
     <div className="space-y-6">
       {/* Search Filter Controls / Quick Switches */}
-      <div className="flex flex-wrap items-center justify-between gap-4 p-4.5 bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-3xl shadow-sm">
-        <div className="flex items-center gap-3">
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 p-3 sm:p-4 bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-2xl sm:rounded-3xl shadow-sm max-w-full overflow-hidden">
+        <div className="flex items-center gap-2 overflow-x-auto pb-1 sm:pb-0 scrollbar-none max-w-full">
           {/* Segmented Dietary Filter Tabs */}
-          <div className="flex items-center bg-slate-50 dark:bg-slate-800 p-1 rounded-2xl border border-slate-100 dark:border-slate-700">
+          <div className="flex items-center bg-slate-50 dark:bg-slate-800 p-1 rounded-xl sm:rounded-2xl border border-slate-100 dark:border-slate-700 shrink-0">
             {[
               { id: 'all', label: 'All Foods' },
-              { id: 'veg', label: 'Veg Only', dotColor: 'bg-emerald-500' },
-              { id: 'non-veg', label: 'Non-Veg Only', dotColor: 'bg-red-500' },
+              { id: 'veg', label: 'Veg', dotColor: 'bg-emerald-500' },
+              { id: 'non-veg', label: 'Non-Veg', dotColor: 'bg-red-500' },
             ].map((diet) => {
               const isSelected = dietaryFilter === diet.id;
               return (
                 <button
                   key={diet.id}
                   onClick={() => { playNotificationSound('click'); setDietaryFilter(diet.id as any); }}
-                  className={`px-3 py-1.5 rounded-xl text-xs font-black transition-all flex items-center gap-1.5 whitespace-nowrap ${
+                  className={`px-2.5 sm:px-3 py-1.5 rounded-lg sm:rounded-xl text-[11px] sm:text-xs font-black transition-all flex items-center gap-1.5 whitespace-nowrap ${
                     isSelected 
                       ? 'bg-white dark:bg-slate-900 text-slate-950 dark:text-white shadow-sm border border-slate-100/40 dark:border-slate-800/40' 
                       : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300'
                   }`}
                 >
                   {diet.dotColor && (
-                    <span className={`w-2 h-2 rounded-full ${diet.dotColor} ${isSelected ? 'animate-pulse' : ''}`} />
+                    <span className={`w-1.5 sm:w-2 h-1.5 sm:h-2 rounded-full ${diet.dotColor} ${isSelected ? 'animate-pulse' : ''}`} />
                   )}
                   <span>{diet.label}</span>
                 </button>
@@ -137,20 +137,20 @@ export default function CatalogGrid() {
           {/* Rating 4.7+ Toggle */}
           <button
             onClick={() => { playNotificationSound('click'); setRatingFilter(!ratingFilter); }}
-            className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-full border text-xs font-black transition-all ${
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-[11px] sm:text-xs font-black transition-all whitespace-nowrap shrink-0 ${
               ratingFilter 
                 ? 'bg-orange-50 border-orange-500 text-orange-700 dark:bg-orange-950/20 dark:border-orange-500 dark:text-orange-400' 
                 : 'bg-slate-50 dark:bg-slate-800/40 border-slate-100 dark:border-slate-800 text-slate-600 dark:text-slate-400'
             }`}
           >
             <Star className="w-3.5 h-3.5 fill-current" />
-            <span>Elite Rated (4.7+)</span>
+            <span>Elite (4.7+)</span>
           </button>
         </div>
 
         {/* Dynamic Items Counter */}
-        <span className="text-xs font-semibold text-slate-400 dark:text-slate-500 font-mono-numbers">
-          Showing {filteredCatalog.length} gourmet options
+        <span className="text-[11px] sm:text-xs font-semibold text-slate-400 dark:text-slate-500 font-mono-numbers text-right">
+          {filteredCatalog.length} gourmet dishes
         </span>
       </div>
 

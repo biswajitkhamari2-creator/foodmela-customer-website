@@ -128,7 +128,7 @@ interface AppContextType {
   setActiveOrder: (o: Order | null) => void;
   pastOrders: Order[];
   refreshOrders: () => Promise<void>;
-  placeOrder: (paymentMethod: string) => Promise<boolean>;
+  placeOrder: (paymentMethod: string, customAddress?: string) => Promise<boolean>;
   reorder: (order: Order) => void;
 
   // Customization Modal
@@ -404,7 +404,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   // Place order to backend & Firestore
-  const placeOrder = async (paymentMethod: string): Promise<boolean> => {
+  const placeOrder = async (paymentMethod: string, customAddress?: string): Promise<boolean> => {
     if (cart.length === 0) return false;
 
     if (!user) {
@@ -412,10 +412,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       return false;
     }
 
+    const deliveryAddress = customAddress || user.address || currentLocation || 'Birmaharajpur, Subarnapur, Odisha - 767018';
+
     const payload = {
       customerName: user.name || 'Food Mela Customer',
       phone: user.phone,
-      address: user.address || currentLocation,
+      address: deliveryAddress,
       items: cart.map((ci) => ({
         itemId: ci.item.id,
         name: ci.item.name,

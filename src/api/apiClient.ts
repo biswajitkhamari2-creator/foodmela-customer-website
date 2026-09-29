@@ -664,19 +664,23 @@ export const apiClient = {
         await apiClient.phoneLogin(phone);
       } catch { /* ignore */ }
 
+      const defaultAddrs = [
+        {
+          id: 'addr_1',
+          label: 'Home',
+          tag: 'Home',
+          addressLine: localStorage.getItem(`fm_user_addr_${phone}`) || 'Main Road, Near College Chowk',
+          city: 'Birmaharajpur',
+          isDefault: true,
+        },
+      ];
+
       const user: UserProfile = {
         name: localStorage.getItem(`fm_user_name_${phone}`) || 'Food Mela Customer',
         phone: phone,
         address: localStorage.getItem(`fm_user_addr_${phone}`) || 'Birmaharajpur, Subarnapur, Odisha - 767018',
-        addresses: [
-          {
-            id: 'addr_1',
-            tag: 'Home',
-            addressLine: 'Main Road, Near College Chowk',
-            city: 'Birmaharajpur',
-            isDefault: true,
-          },
-        ],
+        addresses: defaultAddrs,
+        savedAddresses: defaultAddrs,
         isGoldMember: true,
         totalSaved: 480,
       };

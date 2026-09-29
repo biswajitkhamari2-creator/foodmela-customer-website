@@ -74,7 +74,7 @@ export default function CategoryBubbles() {
       </div>
 
       {/* Horizontal Scroller */}
-      <div className="flex items-center gap-3 overflow-x-auto pb-2 scrollbar-none -mx-4 px-4 sm:mx-0 sm:px-1">
+      <div className="flex items-center gap-2 sm:gap-3 overflow-x-auto pb-2 scrollbar-none px-1 max-w-full">
         {categoriesList.map((cat) => {
           const isActive = selectedCategory === cat.name;
           return (
