@@ -1,11 +1,19 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useApp, playNotificationSound } from '../context/AppContext';
-import { X, CheckCircle2, Loader2, Sparkles, AlertCircle, Phone, ArrowRight, ShieldCheck, KeyRound, ArrowLeft, RefreshCw } from 'lucide-react';
+import { X, CheckCircle2, Loader2, Sparkles, AlertCircle, Phone, ArrowRight, ShieldCheck, ArrowLeft, ExternalLink, RefreshCw } from 'lucide-react';
 import { apiClient } from '../api/apiClient';
 import { doc, getDoc } from 'firebase/firestore';
 import { db } from '../firebase';
 
-const STEP_TIMEOUT_MS = 15000;
+declare global {
+  interface Window {
+    phoneEmailListener?: (userObj: { user_json_url?: string; user_phone_number?: string; user_country_code?: string }) => void;
+  }
+}
+
+const PE_CLIENT_ID = '14442678863809499061';
+const PE_WIDGET_SRC = 'https://www.phone.email/sign_in_button_v1.js';
+const STEP_TIMEOUT_MS = 20000;
 
 function withTimeout<T>(p: Promise<T>, ms: number, label: string): Promise<T> {
   return Promise.race([
@@ -17,44 +25,71 @@ function withTimeout<T>(p: Promise<T>, ms: number, label: string): Promise<T> {
 export default function LoginModal() {
   const { showLoginModal, setShowLoginModal, setUser, setCurrentLocation, refreshOrders } = useApp();
   
-  // Steps: 'phone' | 'otp' | 'success'
-  const [currentStep, setCurrentStep] = useState<'phone' | 'otp' | 'success'>('phone');
+  // 'input' | 'waiting' | 'success'
+  const [currentStep, setCurrentStep] = useState<'input' | 'waiting' | 'success'>('input');
   const [directPhone, setDirectPhone] = useState('');
-  const [otpCode, setOtpCode] = useState(['', '', '', '']);
-  const [countdown, setCountdown] = useState(0);
   const [busy, setBusy] = useState(false);
   const [stepLabel, setStepLabel] = useState('');
   const [err, setErr] = useState('');
   const [verifiedName, setVerifiedName] = useState('');
+  const [verifiedPhone, setVerifiedPhone] = useState('');
 
   const phoneInputRef = useRef<HTMLInputElement>(null);
-  const otpInputRefs = useRef<(HTMLInputElement | null)[]>([]);
 
-  // Focus input on step change
+  // Focus input on open
   useEffect(() => {
-    if (showLoginModal) {
-      if (currentStep === 'phone') {
-        setTimeout(() => phoneInputRef.current?.focus(), 150);
-      } else if (currentStep === 'otp') {
-        setTimeout(() => otpInputRefs.current[0]?.focus(), 150);
-      }
+    if (showLoginModal && currentStep === 'input') {
+      setTimeout(() => phoneInputRef.current?.focus(), 150);
     }
   }, [showLoginModal, currentStep]);
 
-  // Countdown timer for OTP resend
+  // Load official Phone.Email script and listen for verified callbacks
   useEffect(() => {
-    if (countdown > 0) {
-      const timer = setTimeout(() => setCountdown(c => c - 1), 1000);
-      return () => clearTimeout(timer);
-    }
-  }, [countdown]);
+    if (!showLoginModal) return;
 
-  // Reset state when opening/closing modal
+    // Handler for Phone.Email callback
+    const handlePhoneEmailSuccess = (userObj: { user_json_url?: string }) => {
+      if (userObj?.user_json_url) {
+        void verifyWithBackend(userObj.user_json_url);
+      } else {
+        setErr('Real OTP verification was not completed. Please try again.');
+        setBusy(false);
+        setStepLabel('');
+      }
+    };
+
+    window.phoneEmailListener = handlePhoneEmailSuccess;
+
+    // Window message listener as primary/fallback for postMessage
+    const onWindowMessage = (event: MessageEvent) => {
+      if (event.origin === 'https://auth.phone.email') {
+        const d = event.data;
+        if (d && (d.flag_phone === '1' || d.flag_phone === 1) && d.user_json_url) {
+          void verifyWithBackend(d.user_json_url);
+        }
+      }
+    };
+    window.addEventListener('message', onWindowMessage);
+
+    // Inject Phone.Email script if not present
+    if (!document.querySelector(`script[src="${PE_WIDGET_SRC}"]`)) {
+      const s = document.createElement('script');
+      s.src = PE_WIDGET_SRC;
+      s.async = true;
+      document.body.appendChild(s);
+    }
+
+    return () => {
+      window.removeEventListener('message', onWindowMessage);
+      delete window.phoneEmailListener;
+    };
+  }, [showLoginModal]);
+
+  // Reset state when closing modal
   useEffect(() => {
     if (!showLoginModal) {
-      setCurrentStep('phone');
+      setCurrentStep('input');
       setDirectPhone('');
-      setOtpCode(['', '', '', '']);
       setErr('');
       setStepLabel('');
       setBusy(false);
@@ -67,7 +102,30 @@ export default function LoginModal() {
     phoneInputRef.current?.focus();
   };
 
-  const handleSendOtp = async (e: React.FormEvent) => {
+  // Open the official Phone.Email secure authentication popup window with prefilled phone
+  const openPhoneEmailPopup = (phoneToUse: string) => {
+    const cleanPhone = phoneToUse.replace(/[^0-9]/g, '').slice(-10);
+    const currUrl = window.location.origin;
+    const phoneParam = cleanPhone ? `&user_phone_no=${cleanPhone}` : '';
+    const authUrl = `https://auth.phone.email/log-in?client_id=${PE_CLIENT_ID}&auth_type=8&origin=${encodeURIComponent(currUrl)}${phoneParam}`;
+    
+    const w = 500;
+    const h = 580;
+    const top = Math.max(0, (window.screen.height - h) / 2);
+    const left = Math.max(0, (window.screen.width - w) / 2);
+
+    const win = window.open(
+      authUrl,
+      'peLoginWindow',
+      `toolbar=0,scrollbars=1,location=0,statusbar=0,menubar=0,resizable=1,width=${w},height=${h},top=${top},left=${left}`
+    );
+
+    if (win) {
+      try { win.focus(); } catch { /* ignore */ }
+    }
+  };
+
+  const handleSendRealOtp = (e: React.FormEvent) => {
     e.preventDefault();
     const cleanPhone = directPhone.replace(/[^0-9]/g, '').slice(-10);
     if (cleanPhone.length !== 10) {
@@ -75,119 +133,59 @@ export default function LoginModal() {
       return;
     }
 
+    setErr('');
+    setCurrentStep('waiting');
+    openPhoneEmailPopup(cleanPhone);
+    playNotificationSound('click');
+  };
+
+  // Verify the Phone.Email user_json_url with Food Mela Backend
+  const verifyWithBackend = async (userJsonUrl: string) => {
     setBusy(true);
     setErr('');
-    setStepLabel('Sending OTP code…');
+    setStepLabel('Verifying real SMS OTP with Phone.Email…');
+
+    let phone = '';
+    let registeredName = '';
 
     try {
-      const res = await apiClient.sendOTP(cleanPhone);
-      if (res && !res.success) {
-        setErr(res.message || 'Failed to send OTP.');
+      const data = await withTimeout(
+        apiClient.verifyPhoneEmail({ user_json_url: userJsonUrl }),
+        STEP_TIMEOUT_MS,
+        'Phone.Email verification'
+      );
+
+      phone = String(data.phone || '').replace(/[^0-9]/g, '').slice(-10);
+      registeredName = String(data.name || '').trim();
+
+      if (!data.success || phone.length < 10) {
+        setErr('Real OTP verification failed. Please try again.');
         setBusy(false);
         setStepLabel('');
         return;
       }
+
+      if (data.apiToken) {
+        try {
+          localStorage.setItem('fm_api_token', data.apiToken);
+          sessionStorage.setItem('fm_api_token', data.apiToken);
+        } catch { /* ignore */ }
+      }
     } catch {
-      // Continue to OTP step
-    }
-
-    setBusy(false);
-    setStepLabel('');
-    setCountdown(30);
-    setOtpCode(['', '', '', '']);
-    setCurrentStep('otp');
-    playNotificationSound('click');
-  };
-
-  const handleResendOtp = async () => {
-    if (countdown > 0 || busy) return;
-    const cleanPhone = directPhone.replace(/[^0-9]/g, '').slice(-10);
-    setBusy(true);
-    setErr('');
-    setStepLabel('Resending verification code…');
-
-    try {
-      await apiClient.sendOTP(cleanPhone);
-    } catch { /* ignore */ }
-
-    setBusy(false);
-    setStepLabel('');
-    setCountdown(30);
-    playNotificationSound('click');
-  };
-
-  const handleOtpChange = (index: number, value: string) => {
-    const digit = value.replace(/[^0-9]/g, '').slice(-1);
-    const newOtp = [...otpCode];
-    newOtp[index] = digit;
-    setOtpCode(newOtp);
-    setErr('');
-
-    // Advance focus
-    if (digit && index < 3) {
-      otpInputRefs.current[index + 1]?.focus();
-    }
-
-    // Auto-submit if all 4 filled
-    if (digit && index === 3 && newOtp.every(d => d !== '')) {
-      void handleVerifyOtp(newOtp.join(''));
-    }
-  };
-
-  const handleOtpKeyDown = (index: number, e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Backspace' && !otpCode[index] && index > 0) {
-      otpInputRefs.current[index - 1]?.focus();
-    }
-  };
-
-  const handleOtpPaste = (e: React.ClipboardEvent<HTMLInputElement>) => {
-    e.preventDefault();
-    const pasted = e.clipboardData.getData('text').replace(/[^0-9]/g, '').slice(0, 4);
-    if (!pasted) return;
-
-    const newOtp = ['', '', '', ''];
-    for (let i = 0; i < pasted.length; i++) {
-      newOtp[i] = pasted[i];
-    }
-    setOtpCode(newOtp);
-    if (pasted.length === 4) {
-      void handleVerifyOtp(pasted);
-    } else {
-      otpInputRefs.current[pasted.length]?.focus();
-    }
-  };
-
-  const handleVerifyOtp = async (codeToVerify?: string) => {
-    const fullOtp = codeToVerify || otpCode.join('');
-    if (fullOtp.length !== 4) {
-      setErr('Please enter the 4-digit OTP code.');
+      setErr('Could not reach verification server. Please check your internet connection.');
+      setBusy(false);
+      setStepLabel('');
       return;
     }
 
-    const cleanPhone = directPhone.replace(/[^0-9]/g, '').slice(-10);
-    setBusy(true);
-    setErr('');
-    setStepLabel('Verifying OTP code…');
-
-    try {
-      const res = await apiClient.verifyOTP(cleanPhone, fullOtp);
-      if (!res.success) {
-        setErr(res.message || 'Invalid OTP. Please enter 1234.');
-        setBusy(false);
-        setStepLabel('');
-        return;
-      }
-    } catch {
-      // Offline / fallback allowed for demo
-    }
-
-    await lookupAndComplete(cleanPhone);
+    setVerifiedPhone(phone);
+    await lookupAndComplete(phone, registeredName);
   };
 
-  const lookupAndComplete = async (phone: string) => {
-    setStepLabel('Loading your profile & order history…');
+  const lookupAndComplete = async (phone: string, fallbackName?: string) => {
+    setStepLabel('Loading your Food Mela profile & orders…');
 
-    let fullName = '';
+    let fullName = fallbackName || '';
     let address = 'Birmaharajpur, Subarnapur, Odisha - 767018';
 
     // 1. Check Backend profile API
@@ -195,7 +193,9 @@ export default function LoginModal() {
       const res = await withTimeout(apiClient.userProfile(phone), STEP_TIMEOUT_MS, 'Backend profile');
       if (res && res.user) {
         const u = res.user as Record<string, any>;
-        fullName = String(u.fullName || u.name || '').trim();
+        if (!fullName) {
+          fullName = String(u.fullName || u.name || '').trim();
+        }
         const addrs = Array.isArray(u.addresses) ? u.addresses : [];
         if (addrs.length > 0 && addrs[0]?.address) {
           address = String(addrs[0].address).trim();
@@ -292,7 +292,7 @@ export default function LoginModal() {
 
     setTimeout(() => {
       setShowLoginModal(false);
-      setCurrentStep('phone');
+      setCurrentStep('input');
     }, 1200);
   };
 
@@ -329,30 +329,30 @@ export default function LoginModal() {
                 <CheckCircle2 className="w-10 h-10" />
               </div>
               <h3 className="text-xl font-black text-slate-950 dark:text-white font-display">
-                Welcome back!
+                Real OTP Verified!
               </h3>
               <p className="text-sm font-bold text-orange-600 dark:text-orange-400">
                 {verifiedName}
               </p>
               <p className="text-xs text-slate-500 dark:text-slate-400">
-                Logged in successfully with +91 {directPhone.slice(-10)}
+                Connected securely as +91 {verifiedPhone}
               </p>
             </div>
           )}
 
-          {/* STEP: PHONE ENTRY */}
-          {currentStep === 'phone' && (
+          {/* STEP: INPUT MOBILE NUMBER */}
+          {currentStep === 'input' && (
             <div className="space-y-6">
               <div className="text-center space-y-2">
-                <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-orange-500/10 dark:bg-orange-500/20 text-orange-600 dark:text-orange-400 text-[10px] font-black uppercase tracking-wider">
-                  <Sparkles className="w-3 h-3" />
-                  <span>Instant OTP Login</span>
+                <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/10 dark:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 text-[10px] font-black uppercase tracking-wider">
+                  <ShieldCheck className="w-3.5 h-3.5" />
+                  <span>Real SMS OTP Verification</span>
                 </div>
                 <h3 className="text-2xl font-black text-slate-900 dark:text-white font-display tracking-tight">
-                  Welcome to Food Mela
+                  Sign In to Food Mela
                 </h3>
                 <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed max-w-xs mx-auto">
-                  Enter your 10-digit mobile number to access fresh catalog, live tracking &amp; order history.
+                  Enter your mobile number to receive a real SMS OTP code directly on your phone.
                 </p>
               </div>
 
@@ -363,7 +363,7 @@ export default function LoginModal() {
                 </div>
               )}
 
-              <form onSubmit={handleSendOtp} className="space-y-4">
+              <form onSubmit={handleSendRealOtp} className="space-y-4">
                 <div>
                   <div className="flex items-center justify-between mb-1.5">
                     <label className="text-xs font-bold text-slate-700 dark:text-slate-300">
@@ -394,7 +394,7 @@ export default function LoginModal() {
                         if (err) setErr('');
                       }}
                       disabled={busy}
-                      className="w-full pl-14 pr-12 py-3.5 text-sm font-bold bg-slate-50 dark:bg-slate-800/70 border border-slate-200 dark:border-slate-750 rounded-2xl focus:outline-none focus:border-orange-500 dark:focus:border-orange-500 text-slate-900 dark:text-white transition-all shadow-inner"
+                      className="pe_phone_number w-full pl-14 pr-12 py-3.5 text-sm font-bold bg-slate-50 dark:bg-slate-800/70 border border-slate-200 dark:border-slate-750 rounded-2xl focus:outline-none focus:border-orange-500 dark:focus:border-orange-500 text-slate-900 dark:text-white transition-all shadow-inner"
                       required
                     />
                     
@@ -417,48 +417,49 @@ export default function LoginModal() {
                 <button
                   type="submit"
                   disabled={busy || directPhone.length < 10}
-                  className="w-full py-3.5 px-4 bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 disabled:opacity-50 text-white font-black text-xs uppercase tracking-wider rounded-2xl shadow-lg shadow-orange-500/20 active:scale-98 transition-all flex items-center justify-center gap-2"
+                  className="w-full py-3.5 px-4 bg-gradient-to-r from-orange-500 via-amber-500 to-emerald-600 hover:from-orange-600 hover:to-emerald-700 disabled:opacity-50 text-white font-black text-xs uppercase tracking-wider rounded-2xl shadow-lg shadow-orange-500/20 active:scale-98 transition-all flex items-center justify-center gap-2"
                 >
-                  {busy ? (
-                    <>
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                      <span>{stepLabel || 'Sending OTP…'}</span>
-                    </>
-                  ) : (
-                    <>
-                      <span>Get OTP Code</span>
-                      <ArrowRight className="w-4 h-4" />
-                    </>
-                  )}
+                  <Sparkles className="w-4 h-4" />
+                  <span>Send Real SMS OTP</span>
+                  <ArrowRight className="w-4 h-4" />
                 </button>
               </form>
 
-              <div className="pt-2 border-t border-slate-100 dark:border-slate-800 text-center">
-                <p className="text-[11px] text-slate-400 flex items-center justify-center gap-1.5">
-                  <ShieldCheck className="w-3.5 h-3.5 text-emerald-500" />
-                  <span>Secure OTP authentication powered by Food Mela</span>
-                </p>
+              {/* Official Phone.Email 1-Touch Button Container (styled cleanly) */}
+              <div className="pt-2 border-t border-slate-100 dark:border-slate-800 space-y-2.5">
+                <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 block text-center">
+                  Or 1-Tap Phone.Email Verification
+                </span>
+                <div 
+                  className="flex justify-center transition-all min-h-[44px]"
+                  style={{ opacity: busy ? 0.6 : 1, pointerEvents: busy ? 'none' : 'auto' }}
+                >
+                  <div className="pe_signin_button" data-client-id={PE_CLIENT_ID} />
+                </div>
               </div>
             </div>
           )}
 
-          {/* STEP: OTP ENTRY */}
-          {currentStep === 'otp' && (
+          {/* STEP: WAITING FOR REAL SMS OTP VERIFICATION */}
+          {currentStep === 'waiting' && (
             <div className="space-y-6">
               <div className="text-center space-y-2">
                 <button
                   type="button"
-                  onClick={() => { setCurrentStep('phone'); setErr(''); }}
+                  onClick={() => { setCurrentStep('input'); setErr(''); setBusy(false); }}
                   className="inline-flex items-center gap-1 text-[11px] font-bold text-slate-500 hover:text-orange-500 transition-colors mb-1"
                 >
                   <ArrowLeft className="w-3.5 h-3.5" />
                   <span>Change number</span>
                 </button>
+                <div className="w-14 h-14 mx-auto bg-emerald-50 dark:bg-emerald-950/40 rounded-2xl flex items-center justify-center text-emerald-500 shadow-md">
+                  <ShieldCheck className="w-8 h-8 animate-pulse" />
+                </div>
                 <h3 className="text-2xl font-black text-slate-900 dark:text-white font-display tracking-tight">
-                  Verify OTP
+                  Verify SMS Code
                 </h3>
-                <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
-                  Enter the 4-digit code sent to <strong className="text-slate-900 dark:text-white">+91 {directPhone}</strong>
+                <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed max-w-xs mx-auto">
+                  A secure verification window has opened for <strong className="text-slate-900 dark:text-white">+91 {directPhone}</strong>. Enter the real SMS code sent to your phone.
                 </p>
               </div>
 
@@ -469,59 +470,31 @@ export default function LoginModal() {
                 </div>
               )}
 
-              {/* 4-digit OTP Input Boxes */}
-              <div className="flex justify-center gap-3">
-                {otpCode.map((digit, index) => (
-                  <input
-                    key={index}
-                    ref={(el) => (otpInputRefs.current[index] = el)}
-                    type="tel"
-                    maxLength={1}
-                    value={digit}
-                    onChange={(e) => handleOtpChange(index, e.target.value)}
-                    onKeyDown={(e) => handleOtpKeyDown(index, e)}
-                    onPaste={handleOtpPaste}
-                    disabled={busy}
-                    className="w-14 h-14 text-center text-xl font-black bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-2xl focus:outline-none focus:border-orange-500 dark:focus:border-orange-500 text-slate-900 dark:text-white shadow-inner transition-all"
-                  />
-                ))}
-              </div>
+              {busy ? (
+                <div className="p-4 rounded-2xl bg-orange-50 dark:bg-orange-950/30 border border-orange-200 dark:border-orange-900/40 flex items-center justify-center gap-3 text-orange-700 dark:text-orange-300">
+                  <Loader2 className="w-5 h-5 animate-spin" />
+                  <span className="text-xs font-bold">{stepLabel || 'Verifying real OTP…'}</span>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  <button
+                    type="button"
+                    onClick={() => openPhoneEmailPopup(directPhone)}
+                    className="w-full py-3.5 px-4 bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs uppercase tracking-wider rounded-2xl shadow-lg shadow-emerald-600/20 active:scale-98 transition-all flex items-center justify-center gap-2"
+                  >
+                    <ExternalLink className="w-4 h-4" />
+                    <span>Re-open OTP Window</span>
+                  </button>
 
-              <div className="flex items-center justify-between text-xs px-1">
-                <span className="text-slate-400">
-                  Demo OTP: <strong className="text-orange-600 dark:text-orange-400 font-bold">1234</strong>
-                </span>
+                  <div className="flex justify-center">
+                    <div className="pe_signin_button" data-client-id={PE_CLIENT_ID} />
+                  </div>
+                </div>
+              )}
 
-                <button
-                  type="button"
-                  onClick={handleResendOtp}
-                  disabled={countdown > 0 || busy}
-                  className="font-bold text-orange-600 dark:text-orange-400 disabled:text-slate-400 hover:underline flex items-center gap-1"
-                >
-                  <RefreshCw className={`w-3 h-3 ${busy ? 'animate-spin' : ''}`} />
-                  <span>{countdown > 0 ? `Resend in ${countdown}s` : 'Resend OTP'}</span>
-                </button>
-              </div>
-
-              <button
-                type="button"
-                onClick={() => handleVerifyOtp()}
-                disabled={busy || otpCode.some(d => !d)}
-                className="w-full py-3.5 px-4 bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 disabled:opacity-50 text-white font-black text-xs uppercase tracking-wider rounded-2xl shadow-lg shadow-orange-500/20 active:scale-98 transition-all flex items-center justify-center gap-2"
-              >
-                {busy ? (
-                  <>
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                    <span>{stepLabel || 'Verifying…'}</span>
-                  </>
-                ) : (
-                  <>
-                    <KeyRound className="w-4 h-4" />
-                    <span>Verify &amp; Sign In</span>
-                    <ArrowRight className="w-4 h-4" />
-                  </>
-                )}
-              </button>
+              <p className="text-center text-[10px] text-slate-400 leading-relaxed">
+                Once you enter the SMS code in the Phone.Email window, you will be automatically signed in.
+              </p>
             </div>
           )}
         </div>
