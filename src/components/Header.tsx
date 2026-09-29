@@ -127,7 +127,7 @@ export default function Header() {
                 className="flex items-center gap-2 pl-2 pr-3 py-1.5 rounded-xl bg-slate-50 dark:bg-slate-800/60 hover:bg-slate-100 dark:hover:bg-slate-800 border border-slate-100 dark:border-slate-800 transition-all text-xs font-bold text-slate-700 dark:text-slate-300"
               >
                 <div className="w-6 h-6 rounded-lg bg-orange-500 text-white flex items-center justify-center font-bold text-xs uppercase">
-                  {user.name ? user.name[0] : 'U'}
+                  {user.name ? user.name[0] : 'F'}
                 </div>
                 <span className="max-w-[80px] truncate">{user.name || 'Profile'}</span>
               </button>

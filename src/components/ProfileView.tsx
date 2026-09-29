@@ -42,7 +42,7 @@ export default function ProfileView() {
       <div className="p-6 bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-3xl shadow-sm flex flex-col md:flex-row items-center justify-between gap-6">
         <div className="flex flex-col md:flex-row items-center gap-4 text-center md:text-left">
           <div className="w-20 h-20 rounded-3xl bg-gradient-to-tr from-orange-500 to-amber-500 text-white flex items-center justify-center font-black text-3xl uppercase shadow-lg shadow-orange-500/20">
-            {user.name ? user.name[0] : 'U'}
+            {user.name ? user.name[0] : 'F'}
           </div>
           <div className="space-y-1">
             <div className="flex items-center justify-center md:justify-start gap-2">
