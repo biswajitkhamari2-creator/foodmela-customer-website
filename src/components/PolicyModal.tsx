@@ -126,7 +126,7 @@ export default function PolicyModal() {
 
         {/* Modal Bottom Footer */}
         <div className="p-4 bg-slate-50 dark:bg-slate-850 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between text-[11px] text-slate-400 shrink-0">
-          <span>© 2026 FoodMela · foodmela.online</span>
+          <span>© 2026 FoodMela (Operated by SIDDHESHWAR ENTERPRISES) · foodmela.online</span>
           <button
             onClick={() => {
               playNotificationSound('remove');

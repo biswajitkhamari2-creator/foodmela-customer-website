@@ -150,7 +150,7 @@ export default function Footer() {
 
         {/* Bottom copyright line */}
         <div className="mt-10 pt-6 border-t border-slate-200/80 dark:border-slate-800 flex flex-col sm:flex-row items-center justify-between gap-4 text-[11px] text-slate-400 text-center sm:text-left">
-          <p>© 2026 FoodMela (foodmela.online). All Rights Reserved. Digital Hyperlocal Delivery Intermediary.</p>
+          <p>© 2026 FoodMela (Operated by SIDDHESHWAR ENTERPRISES) · foodmela.online. All Rights Reserved. Digital Hyperlocal Delivery Intermediary.</p>
           <div className="flex items-center gap-4">
             <button onClick={() => openPolicy('terms')} className="hover:underline">Terms</button>
             <span>·</span>
