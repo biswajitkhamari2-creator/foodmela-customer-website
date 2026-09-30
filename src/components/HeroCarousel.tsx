@@ -33,8 +33,8 @@ export default function HeroCarousel() {
     {
       id: 'slide_2',
       badge: 'Special discount',
-      title: 'Flat 50% Off Feast',
-      description: 'Order your favorite mutton biryani, paneer gravies or sweets. Use coupon code MELA50.',
+      title: 'Harvest Super Saver',
+      description: 'Order farm-fresh vegetables and pure unpolished dals. Use coupon code MELA50.',
       ctaText: 'Apply Code MELA50',
       gradient: 'from-emerald-700 via-teal-600 to-emerald-500',
       accentIcon: <Sparkles className="w-10 h-10 text-emerald-200 animate-pulse" />,
@@ -46,8 +46,8 @@ export default function HeroCarousel() {
       id: 'slide_3',
       badge: 'Express Delivery',
       title: 'Super-Fast 15-Min Delivery',
-      description: 'Craving street chaat or running out of butter? Handed over in 15 mins, fresh or free.',
-      ctaText: 'Explore Menu',
+      description: 'Need Bhaja Moong Dal or fresh tomatoes for cooking? Delivered fresh to your kitchen in minutes.',
+      ctaText: 'Explore Produce & Dals',
       gradient: 'from-blue-700 via-indigo-600 to-violet-700',
       accentIcon: <Zap className="w-10 h-10 text-yellow-400 animate-pulse" />,
       action: () => {

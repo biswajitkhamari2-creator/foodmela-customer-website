@@ -1,6 +1,6 @@
 import React from 'react';
 import { useApp, playNotificationSound } from '../context/AppContext';
-import { ChefHat, ShoppingBasket, Soup, UtensilsCrossed, Candy, Pizza, Coffee } from 'lucide-react';
+import { ShoppingBasket, Sparkles, Carrot } from 'lucide-react';
 
 interface CategoryConfig {
   name: string;
@@ -15,45 +15,21 @@ export default function CategoryBubbles() {
   const categoriesList: CategoryConfig[] = [
     {
       name: 'All',
-      label: 'All Delicacies',
-      icon: <UtensilsCrossed className="w-4 h-4" />,
+      label: 'All Items',
+      icon: <ShoppingBasket className="w-4 h-4" />,
       color: 'from-orange-500 to-amber-500',
     },
     {
-      name: 'Biryani',
-      label: 'Royal Biryani',
-      icon: <ChefHat className="w-4 h-4" />,
-      color: 'from-amber-600 to-red-600',
+      name: 'Dals & Pulses',
+      label: 'Moong & Dals',
+      icon: <Sparkles className="w-4 h-4" />,
+      color: 'from-amber-600 to-yellow-500',
     },
     {
-      name: 'North Indian',
-      label: 'North Indian',
-      icon: <Soup className="w-4 h-4" />,
-      color: 'from-orange-500 to-red-500',
-    },
-    {
-      name: 'Sweets & Mithai',
-      label: 'Sweets & Mithai',
-      icon: <Candy className="w-4 h-4" />,
-      color: 'from-pink-500 to-rose-500',
-    },
-    {
-      name: 'Street Food',
-      label: 'Street Food',
-      icon: <Pizza className="w-4 h-4" />,
-      color: 'from-yellow-500 to-orange-600',
-    },
-    {
-      name: 'Groceries',
-      label: 'Groceries',
-      icon: <ShoppingBasket className="w-4 h-4" />,
+      name: 'Vegetables',
+      label: 'Fresh Vegetables',
+      icon: <Carrot className="w-4 h-4" />,
       color: 'from-emerald-600 to-teal-500',
-    },
-    {
-      name: 'Beverages',
-      label: 'Beverages',
-      icon: <Coffee className="w-4 h-4" />,
-      color: 'from-amber-400 to-orange-500',
     },
   ];
 
@@ -66,7 +42,7 @@ export default function CategoryBubbles() {
     <div className="w-full space-y-3">
       <div className="flex items-center justify-between px-1">
         <h3 className="text-sm font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest">
-          Explore Festivals & Categories
+          Explore Farm Vegetables &amp; Dals
         </h3>
         <span className="text-xs text-orange-500 font-bold dark:text-orange-400">
           Scroll to view all

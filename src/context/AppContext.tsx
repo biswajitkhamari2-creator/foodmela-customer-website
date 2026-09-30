@@ -149,8 +149,19 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   });
 
   const [cart, setCart] = useState<CartItem[]>(() => {
-    const saved = localStorage.getItem('foodmela_cart');
-    return saved ? JSON.parse(saved) : [];
+    try {
+      const saved = localStorage.getItem('foodmela_cart');
+      if (!saved) return [];
+      const parsed: CartItem[] = JSON.parse(saved);
+      // Strictly filter out any legacy ₹0 items or cooked food items
+      return parsed.filter((ci) => {
+        if (!ci.item || !ci.item.price || ci.item.price <= 0) return false;
+        const cat = (ci.item.category || '').toLowerCase();
+        return cat.includes('vegetable') || cat.includes('dal') || cat.includes('pulse');
+      });
+    } catch {
+      return [];
+    }
   });
 
   const [user, setUser] = useState<UserProfile | null>(() => {
@@ -176,17 +187,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [customizingItem, setCustomizingItem] = useState<CatalogItem | null>(null);
   const [cartDrawerOpen, setCartDrawerOpen] = useState(false);
 
-  // Catalog State
+  // Catalog State (Strictly Dals & Fresh Vegetables, No ₹0 items, No cooked food)
   const [catalog, setCatalog] = useState<CatalogItem[]>(MOCK_CATALOG);
   const [categories, setCategories] = useState<string[]>([
     'All',
+    'Dals & Pulses',
     'Vegetables',
-    'Fruits',
-    'Dairy & Staples',
-    'Energy & Breakfast',
-    'Quick Munch & Chips',
-    'Regional Sweets',
-    'Snacks & Bakery',
   ]);
   const [loadingCatalog, setLoadingCatalog] = useState<boolean>(false);
 
@@ -203,8 +209,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const loadCatalog = async () => {
       setLoadingCatalog(true);
       const items = await apiClient.getCatalog();
-      setCatalog(items);
-      const uniqueCategories = Array.from(new Set(items.map((i) => i.category || 'Grocery')));
+      const validItems = items.filter((item) => {
+        if (!item.price || item.price <= 0) return false;
+        const cat = (item.category || '').toLowerCase();
+        return cat.includes('vegetable') || cat.includes('dal') || cat.includes('pulse');
+      });
+      setCatalog(validItems);
+      const uniqueCategories = Array.from(new Set(validItems.map((i) => i.category || 'Vegetables')));
       setCategories(['All', ...uniqueCategories]);
       setLoadingCatalog(false);
     };
@@ -400,6 +411,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     selectedCustomizations: SelectedCustomization[] = [],
     instructions?: string
   ) => {
+    // Strictly prevent ₹0 or invalid items or non-allowed items from entering cart
+    if (!item || !item.price || item.price <= 0) return;
+    const cat = (item.category || '').toLowerCase();
+    if (!cat.includes('vegetable') && !cat.includes('dal') && !cat.includes('pulse')) return;
+
     playNotificationSound('click');
     setCart((prevCart) => {
       const customKey = [

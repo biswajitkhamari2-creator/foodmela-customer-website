@@ -142,16 +142,16 @@ export default function CartDrawer() {
         <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4 sm:space-y-6">
           {cart.length === 0 ? (
             <div className="h-full flex flex-col items-center justify-center text-center space-y-4 py-12">
-              <span className="text-5xl select-none">🍛</span>
+              <span className="text-5xl select-none">🥦</span>
               <div className="space-y-1">
                 <h4 className="text-base font-bold text-slate-900 dark:text-white font-display">Your bag is empty</h4>
-                <p className="text-xs text-slate-400 max-w-xs mx-auto">Add some sizzling Royal Biryanis or fresh grocery ingredients from the catalog to start your feast!</p>
+                <p className="text-xs text-slate-400 max-w-xs mx-auto">Add farm-fresh vegetables or pure unpolished moong &amp; dals to place your order!</p>
               </div>
               <button
                 onClick={() => setCartDrawerOpen(false)}
                 className="px-5 py-2.5 bg-orange-500 hover:bg-orange-600 text-white font-bold text-xs rounded-xl shadow-md transition-all active:scale-95"
               >
-                Start Browsing Menu
+                Browse Vegetables &amp; Dals
               </button>
             </div>
           ) : checkoutStep === 'cart' ? (

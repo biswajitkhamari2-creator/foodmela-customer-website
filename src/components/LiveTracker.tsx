@@ -344,14 +344,14 @@ export default function LiveTracker() {
                 No Active Orders Right Now
               </h4>
               <p className="text-xs text-slate-400 leading-relaxed">
-                You do not have any ongoing deliveries. Browse our 24 verified grocery and food items to start your meal!
+                You do not have any ongoing deliveries. Browse our fresh farm vegetables and unpolished dals to place an order!
               </p>
             </div>
             <button
               onClick={() => { playNotificationSound('click'); setActiveTab('home'); }}
               className="px-6 py-3 bg-gradient-to-r from-orange-500 to-amber-500 text-white font-black text-xs uppercase tracking-wider rounded-xl shadow-md transition-all active:scale-95"
             >
-              Browse Food Mela Menu
+              Browse Vegetables &amp; Dals
             </button>
           </div>
         )

@@ -16,10 +16,10 @@ export default function SearchTab() {
       {/* Centered Search Hero Title */}
       <div className="text-center max-w-lg mx-auto space-y-2 py-4">
         <h3 className="text-2xl font-black font-display text-transparent bg-clip-text bg-gradient-to-r from-orange-500 via-yellow-500 to-emerald-500 tracking-tight">
-          Savor Something Special
+          Fresh Farm Produce &amp; Dals
         </h3>
         <p className="text-xs text-slate-500 dark:text-slate-400 font-semibold leading-relaxed">
-          Search across 100+ gourmet local outlets, fresh hydroponic grocery hubs, and artisanal sweet boutique chefs instantly.
+          Search pure unpolished dals, Bhaja Moong, and farm-fresh local vegetables across Birmaharajpur.
         </p>
       </div>
 
@@ -27,7 +27,7 @@ export default function SearchTab() {
       <div className="relative max-w-xl mx-auto">
         <input
           type="text"
-          placeholder="Search for Royal Biryani, Paneer gravies, Amul Butter..."
+          placeholder="Search for Bhaja Moong Dal, Toor Dal, Desi Tomato, Potato..."
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
           className="w-full pl-12 pr-4 py-4 text-sm bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-md focus:outline-none focus:border-orange-500 text-slate-900 dark:text-white"

@@ -116,7 +116,7 @@ function AppContent() {
                       Login to Explore Catalog &amp; Place Orders
                     </h4>
                     <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
-                      All 24 verified grocery, vegetable, fruit, and snacks products are accessible after a quick 1-touch OTP login.
+                      All verified fresh vegetables and pure unpolished dals are accessible after a quick 1-touch OTP login.
                     </p>
                   </div>
                   <button

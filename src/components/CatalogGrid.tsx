@@ -23,10 +23,15 @@ export default function CatalogGrid() {
 
   // Filter Catalog Items
   const filteredCatalog = catalog.filter((item) => {
+    // 0. Strict Positive Price (No ₹0 items) & Allowed Categories (No Cooked Food)
+    if (!item.price || item.price <= 0) return false;
+    const cat = (item.category || '').toLowerCase();
+    const isAllowed = cat.includes('vegetable') || cat.includes('dal') || cat.includes('pulse');
+    if (!isAllowed) return false;
+
     // 1. Category Filter
     if (selectedCategory !== 'All') {
-      if (selectedCategory === 'Groceries' && item.type !== 'grocery') return false;
-      if (selectedCategory !== 'Groceries' && item.category !== selectedCategory) return false;
+      if (item.category !== selectedCategory) return false;
     }
 
     // 2. Search Query Filter
@@ -83,21 +88,17 @@ export default function CatalogGrid() {
   };
 
   const getCuisineIcon = (catName: string) => {
-    switch (catName) {
-      case 'Biryani': return '🍛';
-      case 'North Indian': return '🥘';
-      case 'Sweets & Mithai': return '🥮';
-      case 'Street Food': return '🥙';
-      case 'Beverages': return '🍹';
-      default: return '🥕';
-    }
+    const c = (catName || '').toLowerCase();
+    if (c.includes('dal') || c.includes('pulse')) return '🌾';
+    if (c.includes('vegetable')) return '🥦';
+    return '🌱';
   };
 
   if (loadingCatalog) {
     return (
       <div className="flex flex-col items-center justify-center py-20 gap-4 text-slate-400">
         <div className="w-12 h-12 border-4 border-orange-500 border-t-transparent rounded-full animate-spin" />
-        <span className="text-sm font-semibold tracking-wide">Cooking up catalog...</span>
+        <span className="text-sm font-semibold tracking-wide">Loading fresh produce &amp; dals...</span>
       </div>
     );
   }
@@ -110,7 +111,7 @@ export default function CatalogGrid() {
           {/* Segmented Dietary Filter Tabs */}
           <div className="flex items-center bg-slate-50 dark:bg-slate-800 p-1 rounded-xl sm:rounded-2xl border border-slate-100 dark:border-slate-700 shrink-0">
             {[
-              { id: 'all', label: 'All Foods' },
+              { id: 'all', label: 'All Items' },
               { id: 'veg', label: 'Veg', dotColor: 'bg-emerald-500' },
               { id: 'non-veg', label: 'Non-Veg', dotColor: 'bg-red-500' },
             ].map((diet) => {
