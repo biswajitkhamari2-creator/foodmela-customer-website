@@ -1,6 +1,6 @@
 import { CatalogItem, Coupon, Order, UserProfile, Rider } from '../types';
 import { db } from '../firebase';
-import { collection, doc, setDoc, getDocs, query, where, orderBy, serverTimestamp, onSnapshot } from 'firebase/firestore';
+import { collection, doc, setDoc, getDocs, getDoc, query, where, orderBy, serverTimestamp, onSnapshot } from 'firebase/firestore';
 
 // Centralised configuration for Food Mela Backend API
 const BASE_URL = (
@@ -710,20 +710,65 @@ export const apiClient = {
     return { success: false, message: 'Invalid OTP code. Please enter 1234.' };
   },
 
-  // 7. User Profile Lookup
+  // 7. User Profile Lookup (Firestore App ground truth + Backend API)
   userProfile: async (phone: string) => {
+    const clean = String(phone || '').replace(/[^0-9]/g, '').slice(-10);
+    // 1. Check Firestore users collection first (exact name entered in Mobile App)
     try {
-      return await req<{ success: boolean; user: Record<string, unknown> }>(`/api/user/${encodeURIComponent(phone)}`);
+      const snap = await Promise.race([
+        getDoc(doc(db, 'users', clean)),
+        new Promise<null>((resolve) => setTimeout(() => resolve(null), 3000)),
+      ]);
+      if (snap && snap.exists()) {
+        const d = snap.data() as Record<string, any>;
+        const liveName = String(d.fullName || d.name || `${d.firstName || ''} ${d.lastName || ''}`).trim();
+        const liveAddr = String(d.deliveryAddress || d.address || '').trim();
+        if (liveName) {
+          return {
+            success: true,
+            user: {
+              fullName: liveName,
+              name: liveName,
+              phone: clean,
+              address: liveAddr || 'Birmaharajpur, Subarnapur, Odisha - 767018',
+              email: d.email || '',
+              addresses: Array.isArray(d.addresses) ? d.addresses : (liveAddr ? [{ id: 'addr_1', addressLine: liveAddr, label: 'Home', tag: 'Home' }] : []),
+            },
+          };
+        }
+      }
+    } catch {
+      // fallback
+    }
+
+    // 2. Check Backend API
+    try {
+      return await req<{ success: boolean; user: Record<string, unknown> }>(`/api/user/${encodeURIComponent(clean)}`);
     } catch {
       return {
         success: true,
         user: {
-          fullName: localStorage.getItem(`fm_user_name_${phone}`) || 'Food Mela Customer',
-          phone,
-          address: localStorage.getItem(`fm_user_addr_${phone}`) || 'Birmaharajpur, Subarnapur, Odisha - 767018',
+          fullName: localStorage.getItem(`fm_user_name_${clean}`) || 'Food Mela Customer',
+          name: localStorage.getItem(`fm_user_name_${clean}`) || 'Food Mela Customer',
+          phone: clean,
+          address: localStorage.getItem(`fm_user_addr_${clean}`) || 'Birmaharajpur, Subarnapur, Odisha - 767018',
         },
       };
     }
+  },
+
+  // Update Customer Profile on both Firestore & Backend API
+  updateProfile: async (phone: string, data: { name: string; address?: string; email?: string }) => {
+    const clean = String(phone || '').replace(/[^0-9]/g, '').slice(-10);
+    try {
+      await req<{ success: boolean; user?: any }>(`/api/user/${encodeURIComponent(clean)}/profile`, {
+        method: 'POST',
+        body: JSON.stringify(data),
+      }, true);
+    } catch (e) {
+      console.warn('Backend updateProfile notice:', e);
+    }
+    return { success: true };
   },
 
   // 8. Fetch User Orders directly from Backend API + Firestore (pure server truth)
@@ -913,12 +958,17 @@ export const apiClient = {
       console.error('Backend placeOrder fallback:', e);
     }
 
+    const cleanDigits = finalOrderId.replace(/[^0-9]/g, '');
+    const invoiceNumber = `INV-${cleanDigits || finalOrderId}`;
+
     // Mirror to Firestore
     try {
       await setDoc(doc(db, 'orders', finalOrderId), {
         orderId: finalOrderId,
         order_number: finalOrderId,
         clientRef: finalOrderId,
+        invoiceNumber: invoiceNumber,
+        invoiceNo: invoiceNumber,
         customerName: orderPayload.customerName,
         customerPhone: orderPayload.phone,
         address: orderPayload.address,

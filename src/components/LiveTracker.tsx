@@ -520,9 +520,12 @@ export default function LiveTracker() {
             <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
               <div className="space-y-0.5">
                 <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Official Bill &amp; Tax Receipt</span>
-                <h4 className="text-base font-black text-slate-900 dark:text-white font-mono-numbers">
-                  Invoice #{viewInvoiceOrder.id}
-                </h4>
+                <div className="flex items-center gap-2">
+                  <h4 className="text-base font-black text-slate-900 dark:text-white font-mono-numbers">
+                    INV-{viewInvoiceOrder.id.replace(/[^0-9]/g, '') || viewInvoiceOrder.id}
+                  </h4>
+                  <span className="text-xs font-bold text-slate-400">({viewInvoiceOrder.id})</span>
+                </div>
               </div>
               <button 
                 onClick={() => setShowInvoiceId(null)}
@@ -534,9 +537,12 @@ export default function LiveTracker() {
 
             {/* Bill Address */}
             <div className="text-xs space-y-1 text-slate-600 dark:text-slate-400 font-medium">
-              <span className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider">Ship To Address</span>
+              <span className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider">Customer &amp; Delivery Details</span>
               <p className="font-bold text-slate-800 dark:text-slate-200">
-                {viewInvoiceOrder.deliveryAddress}
+                Customer: <span className="text-orange-600 dark:text-orange-400">{user?.name || 'Customer'}</span> ({user?.phone ? `+91 ${user.phone}` : ''})
+              </p>
+              <p className="text-slate-600 dark:text-slate-400">
+                Address: {viewInvoiceOrder.deliveryAddress}
               </p>
               <p>Payment Mode: <strong className="text-slate-900 dark:text-white">{viewInvoiceOrder.paymentMethod}</strong></p>
             </div>

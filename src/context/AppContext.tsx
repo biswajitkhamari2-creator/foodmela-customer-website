@@ -1,6 +1,8 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { CatalogItem, CartItem, Coupon, Order, UserProfile, SelectedCustomization } from '../types';
 import { apiClient, submitPayUForm, MOCK_CATALOG, MOCK_COUPONS } from '../api/apiClient';
+import { db } from '../firebase';
+import { doc, onSnapshot, collection, query, where, setDoc, serverTimestamp } from 'firebase/firestore';
 
 // Premium Audio Synthesis for App Sound Effects
 export const playNotificationSound = (type: 'success' | 'click' | 'remove') => {
@@ -110,6 +112,7 @@ interface AppContextType {
   login: (phone: string, otp: string) => Promise<{ success: boolean; message?: string }>;
   logout: () => void;
   toggleGoldClub: () => void;
+  updateProfile: (newName: string, newAddress?: string) => Promise<boolean>;
 
   // Theme State
   darkMode: boolean;
@@ -257,6 +260,114 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       refreshOrders();
     }
   }, [user, refreshOrders]);
+
+  // ── REAL-TIME 2-WAY PROFILE SYNC (APP ↔ WEBSITE) ──
+  useEffect(() => {
+    if (!user || !user.phone) return;
+    const cleanPhone = user.phone.replace(/[^0-9]/g, '').slice(-10);
+    if (cleanPhone.length < 10) return;
+
+    // Listen to Firestore users/{cleanPhone} in real time
+    const unsub = onSnapshot(doc(db, 'users', cleanPhone), (docSnap) => {
+      if (docSnap.exists()) {
+        const d = docSnap.data() as Record<string, any>;
+        const liveName = String(d.fullName || d.name || `${d.firstName || ''} ${d.lastName || ''}`).trim();
+        const liveAddr = String(d.deliveryAddress || d.address || '').trim();
+
+        if (liveName && liveName !== user.name) {
+          console.log('🔄 [LiveSync] Name updated from mobile app/cloud:', liveName);
+          setUser((prev) => {
+            if (!prev) return prev;
+            const updated = {
+              ...prev,
+              name: liveName,
+              address: liveAddr || prev.address,
+            };
+            try {
+              localStorage.setItem('foodmela_user', JSON.stringify(updated));
+              localStorage.setItem(`fm_user_name_${cleanPhone}`, liveName);
+              if (liveAddr) localStorage.setItem(`fm_user_addr_${cleanPhone}`, liveAddr);
+            } catch { /* ignore */ }
+            return updated;
+          });
+        }
+      }
+    }, (err) => {
+      console.warn('[LiveSync] Profile listener error:', err);
+    });
+
+    return () => unsub();
+  }, [user?.phone, user?.name]);
+
+  // ── REAL-TIME 2-WAY ORDERS SYNC (APP ↔ WEBSITE) ──
+  useEffect(() => {
+    if (!user || !user.phone) return;
+    const cleanPhone = user.phone.replace(/[^0-9]/g, '').slice(-10);
+    if (cleanPhone.length < 10) return;
+
+    // Listen to orders where customerPhone == cleanPhone
+    const q = query(
+      collection(db, 'orders'),
+      where('customerPhone', '==', cleanPhone)
+    );
+
+    const unsub = onSnapshot(q, (snap) => {
+      if (!snap.empty) {
+        void refreshOrders();
+      }
+    }, (err) => {
+      console.warn('[LiveSync] Orders listener notice:', err);
+    });
+
+    return () => unsub();
+  }, [user?.phone, refreshOrders]);
+
+  // ── 2-WAY PROFILE UPDATE (WEBSITE → FIRESTORE + BACKEND → APP) ──
+  const updateProfile = async (newName: string, newAddress?: string): Promise<boolean> => {
+    if (!user || !user.phone) return false;
+    const cleanPhone = user.phone.replace(/[^0-9]/g, '').slice(-10);
+    const trimmedName = newName.trim();
+    if (!trimmedName) return false;
+
+    const trimmedAddr = newAddress?.trim() || user.address || 'Birmaharajpur, Subarnapur, Odisha - 767018';
+
+    // 1. Update local state immediately
+    const updated = {
+      ...user,
+      name: trimmedName,
+      address: trimmedAddr,
+    };
+    setUser(updated);
+    try {
+      localStorage.setItem('foodmela_user', JSON.stringify(updated));
+      localStorage.setItem(`fm_user_name_${cleanPhone}`, trimmedName);
+      localStorage.setItem(`fm_user_addr_${cleanPhone}`, trimmedAddr);
+    } catch { /* ignore */ }
+
+    // 2. Write to Firestore users/{cleanPhone} so Mobile App picks it up INSTANTLY (< 1s)
+    try {
+      await setDoc(doc(db, 'users', cleanPhone), {
+        phone: cleanPhone,
+        name: trimmedName,
+        fullName: trimmedName,
+        deliveryAddress: trimmedAddr,
+        address: trimmedAddr,
+        updatedAt: serverTimestamp(),
+      }, { merge: true });
+    } catch (e) {
+      console.warn('Firestore profile update notice:', e);
+    }
+
+    // 3. Push to backend /api/user/:phone/profile
+    try {
+      await apiClient.updateProfile(cleanPhone, { name: trimmedName, address: trimmedAddr });
+    } catch (e) {
+      console.warn('Backend profile update notice:', e);
+    }
+
+    playNotificationSound('success');
+    return true;
+  };
 
   // Cart Calculations
   const cartTotal = cart.reduce((total, item) => {
@@ -509,6 +620,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         login,
         logout,
         toggleGoldClub,
+        updateProfile,
         darkMode,
         setDarkMode,
         activeTab,

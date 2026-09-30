@@ -188,37 +188,36 @@ export default function LoginModal() {
     let fullName = fallbackName || '';
     let address = 'Birmaharajpur, Subarnapur, Odisha - 767018';
 
-    // 1. Check Backend profile API
+    // 1. Check Firestore users collection FIRST (exact mobile app registered name)
     try {
-      const res = await withTimeout(apiClient.userProfile(phone), STEP_TIMEOUT_MS, 'Backend profile');
-      if (res && res.user) {
-        const u = res.user as Record<string, any>;
-        if (!fullName) {
-          fullName = String(u.fullName || u.name || '').trim();
-        }
-        const addrs = Array.isArray(u.addresses) ? u.addresses : [];
-        if (addrs.length > 0 && addrs[0]?.address) {
-          address = String(addrs[0].address).trim();
-        } else if (u.address) {
-          address = String(u.address).trim();
+      const snap = await Promise.race([
+        getDoc(doc(db, 'users', phone)),
+        new Promise<null>((resolve) => setTimeout(() => resolve(null), 3500)),
+      ]);
+      if (snap && snap.exists()) {
+        const d = snap.data() as Record<string, any>;
+        const fsName = String(d.fullName || d.name || `${d.firstName || ''} ${d.lastName || ''}`).trim();
+        if (fsName) fullName = fsName;
+        if (d.deliveryAddress || d.address) {
+          address = String(d.deliveryAddress || d.address).trim();
         }
       }
     } catch {
       // ignore
     }
 
-    // 2. Check Firestore users collection if name still empty
+    // 2. Check Backend profile API if name still empty
     if (!fullName) {
       try {
-        const snap = await Promise.race([
-          getDoc(doc(db, 'users', phone)),
-          new Promise<null>((resolve) => setTimeout(() => resolve(null), 3000)),
-        ]);
-        if (snap && snap.exists()) {
-          const d = snap.data() as Record<string, any>;
-          fullName = String(d.fullName || d.name || `${d.firstName || ''} ${d.lastName || ''}`).trim();
-          if (d.deliveryAddress || d.address) {
-            address = String(d.deliveryAddress || d.address).trim();
+        const res = await withTimeout(apiClient.userProfile(phone), STEP_TIMEOUT_MS, 'Backend profile');
+        if (res && res.user) {
+          const u = res.user as Record<string, any>;
+          fullName = String(u.fullName || u.name || '').trim();
+          const addrs = Array.isArray(u.addresses) ? u.addresses : [];
+          if (addrs.length > 0 && addrs[0]?.address) {
+            address = String(addrs[0].address).trim();
+          } else if (u.address) {
+            address = String(u.address).trim();
           }
         }
       } catch {
