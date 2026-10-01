@@ -183,7 +183,7 @@ export default function CatalogGrid() {
             return (
               <div
                 key={item.id}
-                className="group relative bg-white dark:bg-slate-900 rounded-3xl overflow-hidden border border-slate-100 dark:border-slate-850 hover:border-orange-500/15 dark:hover:border-orange-500/20 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300 flex flex-col"
+                className="card-glow rise-in group relative bg-white/90 dark:bg-slate-900/90 backdrop-blur rounded-3xl overflow-hidden border border-slate-100 dark:border-slate-800 hover:border-orange-400/40 dark:hover:border-orange-500/30 shadow-sm flex flex-col"
               >
                 {/* Image Block with Custom Gradients Fallback */}
                 <div className="relative h-44 w-full overflow-hidden shrink-0">
@@ -268,7 +268,7 @@ export default function CatalogGrid() {
 
                     {/* Add-to-cart or Customization Trigger */}
                     {qty > 0 ? (
-                      <div className="flex items-center bg-orange-500 dark:bg-emerald-600 rounded-xl shadow-md p-0.5">
+                      <div className="flex items-center bg-gradient-to-r from-orange-500 to-amber-500 dark:from-emerald-600 dark:to-teal-500 rounded-xl shadow-md shadow-orange-500/30 p-0.5 ring-1 ring-orange-400/30">
                         <button
                           onClick={() => { playNotificationSound('remove'); handleDecreaseQuantity(item.id); }}
                           className="w-8 h-8 flex items-center justify-center text-white hover:bg-black/5 font-extrabold text-sm rounded-lg active:scale-90 transition-all"
@@ -288,7 +288,7 @@ export default function CatalogGrid() {
                     ) : (
                       <button
                         onClick={() => { playNotificationSound('click'); handleAddClick(item); }}
-                        className="px-4 py-2 bg-slate-50 hover:bg-orange-500 hover:text-white dark:bg-slate-800 dark:hover:bg-emerald-600 dark:hover:text-white text-orange-500 dark:text-emerald-400 font-black text-xs uppercase tracking-wider rounded-xl border border-slate-200/50 dark:border-slate-800/80 hover:border-transparent transition-all shadow-sm active:scale-95"
+                        className="px-4 py-2 bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white font-black text-xs uppercase tracking-wider rounded-xl transition-all shadow-md shadow-orange-500/30 hover:shadow-lg hover:shadow-orange-500/40 hover:-translate-y-0.5 active:scale-95"
                       >
                         + Add {item.customizationOptions ? 'Custom' : ''}
                       </button>

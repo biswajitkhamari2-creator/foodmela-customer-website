@@ -132,6 +132,7 @@ interface AppContextType {
   pastOrders: Order[];
   refreshOrders: () => Promise<void>;
   placeOrder: (paymentMethod: string, customAddress?: string) => Promise<boolean>;
+  convertOrderToPrepaid: (orderId: string) => Promise<boolean>;
   reorder: (order: Order) => void;
 
   // Customization Modal
@@ -572,9 +573,16 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         name: ci.item.name,
         quantity: ci.quantity,
         price: ci.item.price,
+        unit: ci.item.unit || '',
         totalPrice: ci.item.price * ci.quantity,
       })),
       totalAmount: grandTotal,
+      subtotal: cartTotal,
+      deliveryFee,
+      discount: discountAmount + goldSavings,
+      promoCode: appliedCoupon?.code || (isGold ? 'MELA_GOLD' : ''),
+      taxes,
+      platformFee,
       paymentMethod,
     };
 
@@ -584,6 +592,16 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       clearCart();
       await refreshOrders();
       setActiveTab('orders');
+      return true;
+    }
+    return false;
+  };
+
+  const convertOrderToPrepaid = async (orderId: string): Promise<boolean> => {
+    const res = await apiClient.convertCodToPrepaid(orderId);
+    if (res.success) {
+      playNotificationSound('success');
+      await refreshOrders();
       return true;
     }
     return false;
@@ -648,6 +666,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         pastOrders,
         refreshOrders,
         placeOrder,
+        convertOrderToPrepaid,
         reorder,
         customizingItem,
         setCustomizingItem,

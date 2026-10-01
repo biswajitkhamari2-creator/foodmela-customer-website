@@ -29,6 +29,11 @@ function AppContent() {
       const path = window.location.pathname;
       const params = new URLSearchParams(search);
 
+      if (path === '/admin' || path.startsWith('/admin/')) {
+        window.location.href = 'https://food-mela-admin.vercel.app';
+        return;
+      }
+
       if (params.get('paid') === '1' || path.includes('/track/')) {
         clearCart();
         setActiveTab('orders');
@@ -180,11 +185,11 @@ function AppContent() {
   };
 
   return (
-    <div className="min-h-screen pb-20 md:pb-0 bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-white transition-colors duration-300 flex flex-col justify-between overflow-x-hidden max-w-full w-full">
+    <div className="min-h-screen pb-20 md:pb-0 text-slate-900 dark:text-white transition-colors duration-300 flex flex-col justify-between overflow-x-hidden max-w-full w-full">
       
       <div className="w-full max-w-full overflow-x-hidden">
         {/* 1. Top Promotion Bar */}
-        <div className="bg-gradient-to-r from-orange-600 via-amber-600 to-emerald-600 text-white text-[10px] sm:text-[11px] font-bold py-1 px-2 sm:px-4 text-center truncate">
+        <div className="shimmer-gold text-slate-950 text-[10px] sm:text-[11px] font-black py-1.5 px-2 sm:px-4 text-center truncate tracking-wide">
           🎉 <span>Food Mela Online · 100% Farm Fresh Delivery in Birmaharajpur · Code <strong>FEAST50</strong> for ₹50 OFF</span>
         </div>
 

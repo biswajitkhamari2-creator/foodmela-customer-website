@@ -50,16 +50,30 @@ export default function Header() {
   return (
     <>
       {/* ================= DESKTOP HEADER ================= */}
-      <header className="hidden md:block sticky top-0 z-40 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border-b border-slate-100 dark:border-slate-800">
+      <header className="hidden md:block sticky top-0 z-40 bg-white/85 dark:bg-slate-900/85 backdrop-blur-xl border-b border-orange-100/60 dark:border-slate-800 shadow-[0_8px_30px_-12px_rgba(249,115,22,0.25)]">
         <div className="max-w-7xl mx-auto px-6 h-20 flex items-center justify-between">
           
           {/* Zone 1: Brand Wordmark */}
           <div className="flex items-center gap-6">
             <button 
               onClick={handleBrandClick}
-              className="text-2xl font-black font-display tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-orange-500 via-yellow-500 to-emerald-500 hover:opacity-90 transition-opacity"
+              className="flex items-center gap-3 hover:opacity-95 transition-all group"
             >
-              Food Mela
+              <div className="relative p-1 rounded-2xl bg-gradient-to-tr from-orange-600 via-amber-500 to-emerald-500 shadow-lg shadow-orange-500/30 ring-1 ring-white/40 group-hover:scale-105 group-hover:rotate-3 transition-transform">
+                <img
+                  src="/food_mela_logo.png"
+                  alt="Food Mela"
+                  className="w-11 h-11 rounded-xl object-cover"
+                />
+              </div>
+              <div className="flex flex-col text-left">
+                <span className="text-2xl font-black font-display tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-orange-500 via-yellow-500 to-emerald-500 leading-none">
+                  Food Mela
+                </span>
+                <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest mt-0.5">
+                  Birmaharajpur
+                </span>
+              </div>
             </button>
 
             {/* Location Pill */}
@@ -134,7 +148,7 @@ export default function Header() {
             ) : (
               <button
                 onClick={() => { playNotificationSound('click'); setShowLoginModal(true); }}
-                className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white font-bold text-xs transition-all shadow-md shadow-orange-500/5 active:scale-[0.98]"
+                className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-gradient-to-r from-orange-500 via-amber-500 to-orange-600 bg-[length:200%_100%] hover:bg-right text-white font-bold text-xs transition-all shadow-lg shadow-orange-500/30 active:scale-[0.98]"
               >
                 <User className="w-3.5 h-3.5" />
                 <span>Sign In</span>
@@ -144,7 +158,7 @@ export default function Header() {
             {/* Cart Icon with Live Badge count */}
             <button
               onClick={() => { playNotificationSound('click'); setCartDrawerOpen(true); }}
-              className="relative flex items-center gap-2 px-4 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 dark:bg-emerald-600 dark:hover:bg-emerald-500 text-white font-bold text-xs transition-all shadow-lg active:scale-[0.98]"
+              className="relative flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-slate-900 to-slate-700 hover:from-orange-600 hover:to-amber-500 dark:from-emerald-600 dark:to-teal-500 dark:hover:from-emerald-500 dark:hover:to-teal-400 text-white font-bold text-xs transition-all shadow-lg shadow-slate-900/20 hover:shadow-orange-500/30 active:scale-[0.98]"
             >
               <ShoppingBag className="w-4 h-4" />
               <span>Bag</span>
@@ -175,12 +189,19 @@ export default function Header() {
           <ChevronDown className="w-3 h-3 text-slate-400 shrink-0" />
         </button>
 
-        {/* Center: Brand title */}
+        {/* Center: Brand logo & title */}
         <button
           onClick={handleBrandClick}
-          className="text-base sm:text-lg font-black font-display text-transparent bg-clip-text bg-gradient-to-r from-orange-500 to-yellow-500 shrink-0"
+          className="flex items-center gap-2 shrink-0"
         >
-          Food Mela
+          <img
+            src="/food_mela_logo.png"
+            alt="Food Mela"
+            className="w-8 h-8 rounded-xl shadow-sm object-cover border border-orange-500/20"
+          />
+          <span className="text-base sm:text-lg font-black font-display text-transparent bg-clip-text bg-gradient-to-r from-orange-500 via-yellow-500 to-emerald-500">
+            Food Mela
+          </span>
         </button>
 
         {/* Right Actions */}

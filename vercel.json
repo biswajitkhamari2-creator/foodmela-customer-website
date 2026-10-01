@@ -1,4 +1,8 @@
 {
+  "redirects": [
+    { "source": "/admin", "destination": "https://food-mela-admin.vercel.app", "permanent": false },
+    { "source": "/admin/(.*)", "destination": "https://food-mela-admin.vercel.app/$1", "permanent": false }
+  ],
   "rewrites": [
     { "source": "/api/:path*", "destination": "https://food-mela-backend.vercel.app/api/:path*" },
     { "source": "/(.*)", "destination": "/index.html" }

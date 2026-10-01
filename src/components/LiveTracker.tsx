@@ -8,9 +8,10 @@ import {
 import { Order } from '../types';
 
 export default function LiveTracker() {
-  const { activeOrder, pastOrders, reorder, currentLocation, setActiveTab } = useApp();
+  const { activeOrder, pastOrders, reorder, currentLocation, setActiveTab, convertOrderToPrepaid } = useApp();
   const [trackerTab, setTrackerTab] = useState<'active' | 'cancelled' | 'past'>('active');
   const [showInvoiceId, setShowInvoiceId] = useState<string | null>(null);
+  const [convertingId, setConvertingId] = useState<string | null>(null);
 
   // Stepper Configurations for Active Orders
   const steps = [
@@ -247,6 +248,48 @@ export default function LiveTracker() {
                     <Phone className="w-4 h-4" />
                     <span>Call Delivery Partner</span>
                   </button>
+                </div>
+
+                {/* Real-Time Payment Mode & COD-to-Prepaid Conversion Banner */}
+                <div className="p-5 bg-gradient-to-r from-purple-500/10 via-indigo-500/5 to-purple-500/10 rounded-3xl border border-purple-500/20 shadow-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-black text-purple-600 dark:text-purple-400 uppercase tracking-wider">
+                        Payment Mode:
+                      </span>
+                      {displayedActive.paymentMethod === 'COD' ? (
+                        <span className="px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-700 dark:text-amber-400 font-bold text-xs">
+                          💵 Cash on Delivery (₹{displayedActive.totalAmount})
+                        </span>
+                      ) : (
+                        <span className="px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-bold text-xs flex items-center gap-1">
+                          <CheckCircle2 className="w-3 h-3" />
+                          <span>Prepaid Online (₹{displayedActive.totalAmount})</span>
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-xs text-slate-500 dark:text-slate-400">
+                      {displayedActive.paymentMethod === 'COD'
+                        ? 'Prefer not to carry cash? Convert to UPI Prepaid now and show digital proof.'
+                        : 'Digitally settled with Food Mela merchant account. No cash needed at doorstep.'}
+                    </p>
+                  </div>
+
+                  {displayedActive.paymentMethod === 'COD' && (
+                    <button
+                      onClick={async () => {
+                        playNotificationSound('click');
+                        setConvertingId(displayedActive.id);
+                        await convertOrderToPrepaid(displayedActive.id);
+                        setConvertingId(null);
+                      }}
+                      disabled={convertingId === displayedActive.id}
+                      className="py-2.5 px-5 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white font-black text-xs uppercase tracking-wider rounded-xl shadow-md flex items-center justify-center gap-2 active:scale-95 transition-all shrink-0 whitespace-nowrap"
+                    >
+                      <span>⚡</span>
+                      <span>{convertingId === displayedActive.id ? 'Processing Gateway...' : 'Pay Online via UPI (Convert)'}</span>
+                    </button>
+                  )}
                 </div>
 
                 {/* Items in active order */}

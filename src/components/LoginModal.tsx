@@ -133,6 +133,18 @@ export default function LoginModal() {
       return;
     }
 
+    // Payment Gateway Compliance & Auditor Test Bypass
+    if (cleanPhone === '9999999999' || cleanPhone === '9876543210' || cleanPhone === '8888888888') {
+      setErr('');
+      setBusy(true);
+      setStepLabel('Logging in as Payment Gateway Verification Auditor…');
+      setTimeout(() => {
+        completeLogin(cleanPhone, 'PG Verification Auditor', 'Main Bazaar Road, Birmaharajpur, Subarnapur, Odisha - 767018');
+      }, 500);
+      playNotificationSound('success');
+      return;
+    }
+
     setErr('');
     setCurrentStep('waiting');
     openPhoneEmailPopup(cleanPhone);
@@ -343,6 +355,11 @@ export default function LoginModal() {
           {currentStep === 'input' && (
             <div className="space-y-6">
               <div className="text-center space-y-2">
+                <img
+                  src="/food_mela_logo.png"
+                  alt="Food Mela"
+                  className="w-16 h-16 rounded-2xl shadow-md mx-auto object-cover"
+                />
                 <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/10 dark:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 text-[10px] font-black uppercase tracking-wider">
                   <ShieldCheck className="w-3.5 h-3.5" />
                   <span>Real SMS OTP Verification</span>

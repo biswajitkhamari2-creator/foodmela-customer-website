@@ -13,7 +13,8 @@ export default function Footer() {
   return (
     <footer className="mt-16 border-t border-slate-200/80 dark:border-slate-800 bg-white/70 dark:bg-slate-900/70 backdrop-blur-md">
       {/* Top Banner CTA */}
-      <div className="bg-gradient-to-r from-orange-500 via-amber-500 to-emerald-500 py-6 px-4 text-white">
+      <div className="relative overflow-hidden bg-gradient-to-br from-orange-600 via-amber-500 to-emerald-600 py-8 px-4 text-white shadow-inner">
+        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_20%_0%,rgba(255,255,255,0.25),transparent_50%)]" />
         <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4 text-center sm:text-left">
           <div className="space-y-1">
             <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-white/20 backdrop-blur-sm text-[11px] font-black tracking-wide uppercase">
@@ -46,10 +47,12 @@ export default function Footer() {
           
           {/* Col 1: Brand & Tagline */}
           <div className="space-y-4 md:col-span-1">
-            <div className="flex items-center gap-2">
-              <div className="w-9 h-9 rounded-2xl bg-gradient-to-tr from-orange-500 to-amber-500 flex items-center justify-center text-white font-black text-lg shadow-md shadow-orange-500/20">
-                F
-              </div>
+            <div className="flex items-center gap-2.5">
+              <img
+                src="/food_mela_logo.png"
+                alt="Food Mela"
+                className="w-10 h-10 rounded-2xl shadow-md object-cover"
+              />
               <span className="text-xl font-black font-display tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-orange-500 via-yellow-500 to-emerald-500">
                 Food Mela
               </span>
@@ -148,15 +151,33 @@ export default function Footer() {
 
         </div>
 
+        {/* Discreet Legal Entity & Regulatory Notes */}
+        <div className="mt-6 pt-4 border-t border-slate-100 dark:border-slate-800">
+          <details className="text-[11px] text-slate-400 group cursor-pointer text-center sm:text-left">
+            <summary className="hover:text-slate-600 dark:hover:text-slate-300 font-medium select-none list-none inline-flex items-center gap-1.5 transition-colors">
+              <span>📋 Legal Entity &amp; Regulatory Notes</span>
+              <span className="text-[10px] text-slate-400 group-open:rotate-180 transition-transform">▼</span>
+            </summary>
+            <div className="mt-2.5 p-3 rounded-xl bg-slate-50 dark:bg-slate-850/80 border border-slate-200/60 dark:border-slate-800 text-slate-500 dark:text-slate-400 space-y-1">
+              <p>
+                <strong className="text-slate-700 dark:text-slate-300">Legal Business Name:</strong> SIDHESWAR ENTERPRISES · <strong className="text-slate-700 dark:text-slate-300">MSME Udyam:</strong> UDYAM-OD-29-0025578 · <strong className="text-slate-700 dark:text-slate-300">Trade Name:</strong> FoodMela
+              </p>
+              <p>
+                Operational Base: Birmaharajpur, Subarnapur, Odisha – 767018 | Helpline: +91 8144503650 | Email: support@foodmela.online
+              </p>
+            </div>
+          </details>
+        </div>
+
         {/* Bottom copyright line */}
-        <div className="mt-10 pt-6 border-t border-slate-200/80 dark:border-slate-800 flex flex-col sm:flex-row items-center justify-between gap-4 text-[11px] text-slate-400 text-center sm:text-left">
-          <p>© 2026 FoodMela (Operated by SIDDHESHWAR ENTERPRISES) · foodmela.online. All Rights Reserved. Digital Hyperlocal Delivery Intermediary.</p>
+        <div className="mt-4 pt-4 border-t border-slate-200/60 dark:border-slate-800 flex flex-col sm:flex-row items-center justify-between gap-4 text-[11px] text-slate-400 text-center sm:text-left">
+          <p>© 2026 FoodMela (Operated by SIDHESWAR ENTERPRISES) · foodmela.online. All Rights Reserved.</p>
           <div className="flex items-center gap-4">
-            <button onClick={() => openPolicy('terms')} className="hover:underline">Terms</button>
+            <a href="/terms.html" target="_blank" rel="noreferrer" className="hover:underline">Terms</a>
             <span>·</span>
-            <button onClick={() => openPolicy('privacy')} className="hover:underline">Privacy</button>
+            <a href="/privacy.html" target="_blank" rel="noreferrer" className="hover:underline">Privacy</a>
             <span>·</span>
-            <button onClick={() => openPolicy('refund')} className="hover:underline">Refunds</button>
+            <a href="/contact.html" target="_blank" rel="noreferrer" className="hover:underline">Contact &amp; Grievance</a>
           </div>
         </div>
       </div>
