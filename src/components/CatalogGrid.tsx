@@ -23,11 +23,8 @@ export default function CatalogGrid() {
 
   // Filter Catalog Items
   const filteredCatalog = catalog.filter((item) => {
-    // 0. Strict Positive Price (No ₹0 items) & Allowed Categories (No Cooked Food)
+    // 0. Strict Positive Price (No ₹0 items)
     if (!item.price || item.price <= 0) return false;
-    const cat = (item.category || '').toLowerCase();
-    const isAllowed = cat.includes('vegetable') || cat.includes('dal') || cat.includes('pulse');
-    if (!isAllowed) return false;
 
     // 1. Category Filter
     if (selectedCategory !== 'All') {
@@ -155,8 +152,54 @@ export default function CatalogGrid() {
         </span>
       </div>
 
-      {/* Grid Container */}
-      {filteredCatalog.length === 0 ? (
+      {/* Special Category Coming Soon Views */}
+      {selectedCategory === 'fashion' ? (
+        <div className="p-8 sm:p-12 text-center space-y-6 bg-gradient-to-b from-purple-500/10 via-pink-500/5 to-white dark:to-slate-900 rounded-3xl border border-purple-500/20 shadow-lg animate-fade-in">
+          <div className="w-20 h-20 mx-auto rounded-3xl bg-gradient-to-tr from-purple-600 to-pink-500 flex items-center justify-center text-white text-4xl shadow-xl shadow-purple-500/30 animate-bounce">
+            👗
+          </div>
+          <div className="space-y-2 max-w-md mx-auto">
+            <span className="text-[11px] font-black uppercase text-purple-600 dark:text-purple-400 tracking-widest bg-purple-100 dark:bg-purple-950/60 px-3 py-1 rounded-full">
+              Fashion &amp; Dress Collection
+            </span>
+            <h3 className="text-2xl sm:text-3xl font-black text-slate-900 dark:text-white font-display">
+              Fashion &amp; Dress — Coming Soon!
+            </h3>
+            <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 leading-relaxed">
+              We are curating handpicked ethnic wear, everyday apparel, and trending fashion collections for Birmaharajpur. Launching soon on Food Mela!
+            </p>
+          </div>
+          <button
+            onClick={() => { playNotificationSound('click'); setSelectedCategory('All'); }}
+            className="px-6 py-3 bg-gradient-to-r from-purple-600 to-pink-500 text-white font-black text-xs uppercase tracking-wider rounded-2xl shadow-md shadow-purple-500/20 active:scale-95 transition-all"
+          >
+            Back to Fresh Bazaar &amp; Dals
+          </button>
+        </div>
+      ) : selectedCategory === 'furniture' ? (
+        <div className="p-8 sm:p-12 text-center space-y-6 bg-gradient-to-b from-indigo-500/10 via-blue-500/5 to-white dark:to-slate-900 rounded-3xl border border-indigo-500/20 shadow-lg animate-fade-in">
+          <div className="w-20 h-20 mx-auto rounded-3xl bg-gradient-to-tr from-indigo-600 to-blue-500 flex items-center justify-center text-white text-4xl shadow-xl shadow-indigo-500/30 animate-bounce">
+            🛋️
+          </div>
+          <div className="space-y-2 max-w-md mx-auto">
+            <span className="text-[11px] font-black uppercase text-indigo-600 dark:text-indigo-400 tracking-widest bg-indigo-100 dark:bg-indigo-950/60 px-3 py-1 rounded-full">
+              Furniture &amp; Home Living
+            </span>
+            <h3 className="text-2xl sm:text-3xl font-black text-slate-900 dark:text-white font-display">
+              Furniture &amp; Living — Coming Soon!
+            </h3>
+            <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 leading-relaxed">
+              Quality home decor, stylish living essentials, and comfortable furniture are coming to Food Mela. Stay tuned!
+            </p>
+          </div>
+          <button
+            onClick={() => { playNotificationSound('click'); setSelectedCategory('All'); }}
+            className="px-6 py-3 bg-gradient-to-r from-indigo-600 to-blue-500 text-white font-black text-xs uppercase tracking-wider rounded-2xl shadow-md shadow-indigo-500/20 active:scale-95 transition-all"
+          >
+            Back to Fresh Bazaar &amp; Dals
+          </button>
+        </div>
+      ) : filteredCatalog.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-16 px-4 text-center bg-white dark:bg-slate-900/40 rounded-3xl border border-dashed border-slate-200 dark:border-slate-800">
           <AlertCircle className="w-10 h-10 text-orange-500/80 mb-3" />
           <h4 className="text-base font-bold text-slate-900 dark:text-white font-display">No dishes match your filters</h4>

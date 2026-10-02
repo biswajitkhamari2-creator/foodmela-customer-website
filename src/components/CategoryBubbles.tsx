@@ -28,6 +28,12 @@ export default function CategoryBubbles() {
       color: 'from-orange-500 to-amber-500',
     },
     {
+      name: 'cooked_food',
+      label: 'Cooked Food & Steaks',
+      icon: <UtensilsCrossed className="w-4 h-4" />,
+      color: 'from-orange-600 to-amber-600',
+    },
+    {
       name: 'Dals & Pulses',
       label: 'Moong & Dals',
       icon: <Sparkles className="w-4 h-4" />,
@@ -56,6 +62,18 @@ export default function CategoryBubbles() {
       label: 'Mithai 30-40% OFF',
       icon: <Candy className="w-4 h-4" />,
       color: 'from-pink-600 to-orange-500',
+    },
+    {
+      name: 'fashion',
+      label: 'Fashion & Dress 👗 (Coming Soon)',
+      icon: <Sparkles className="w-4 h-4" />,
+      color: 'from-purple-600 to-pink-500',
+    },
+    {
+      name: 'furniture',
+      label: 'Furniture & Living 🛋️ (Coming Soon)',
+      icon: <Package className="w-4 h-4" />,
+      color: 'from-indigo-600 to-blue-500',
     },
   ];
 
@@ -151,12 +169,12 @@ export default function CategoryBubbles() {
               />
             </svg>
           </h3>
-          <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-600 dark:text-emerald-400">
+          <span className="inline-flex items-center gap-1 text-[10px] font-bold text-amber-600 dark:text-amber-400">
             <span className="relative flex h-2 w-2">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
-              <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75" />
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-amber-500" />
             </span>
-            Open now
+            Services Launching Soon
           </span>
         </div>
 
@@ -178,7 +196,7 @@ export default function CategoryBubbles() {
                 <Stethoscope className="w-4 h-4" />
               </span>
               <span>Doctor Consultation</span>
-              <span className="text-[9px] font-black uppercase px-1.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">24×7</span>
+              <span className="text-[9px] font-black uppercase px-1.5 py-0.5 rounded-full bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20">Coming Soon</span>
             </button>
             <button
               onClick={() => { playNotificationSound('click'); setPolicyModalOpen(true); }}
@@ -198,7 +216,7 @@ export default function CategoryBubbles() {
                 <Pill className="w-4 h-4" />
               </span>
               <span>Pharmacy</span>
-              <span className="text-[9px] font-black uppercase px-1.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">20% OFF</span>
+              <span className="text-[9px] font-black uppercase px-1.5 py-0.5 rounded-full bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20">Coming Soon</span>
             </button>
             <button
               onClick={() => { playNotificationSound('click'); setRecordModalOpen(true); }}

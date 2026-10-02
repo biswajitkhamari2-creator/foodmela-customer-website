@@ -57,11 +57,14 @@ export default function PharmacyModal({ isOpen, onClose }: { isOpen: boolean; on
               <Pill className="w-4 h-4" />
               <span>FoodMela Pharmacy</span>
             </div>
-            <h3 className="text-xl sm:text-2xl font-black font-display">
-              Order Medicines Online
+            <h3 className="text-xl sm:text-2xl font-black font-display flex items-center gap-2">
+              <span>Pharmacy Service</span>
+              <span className="text-xs bg-amber-400 text-slate-950 font-black px-2 py-0.5 rounded-full uppercase tracking-wider">
+                Coming Soon
+              </span>
             </h3>
             <p className="text-xs text-emerald-100 font-medium">
-              20% OFF on branded medicines • Genuine stock • Fast local delivery
+              Flat 20% OFF on genuine branded medicines & fast doorstep delivery — launching soon!
             </p>
           </div>
           <button
@@ -79,28 +82,22 @@ export default function PharmacyModal({ isOpen, onClose }: { isOpen: boolean; on
               <BadgePercent className="w-5 h-5" />
             </span>
             <div>
-              <p className="text-sm font-black text-slate-900 dark:text-white">Flat 20% OFF — Branded Medicines</p>
-              <p className="text-[11px] text-slate-500 dark:text-slate-400 font-medium">Upload prescription or just type medicine names. Pay on delivery.</p>
+              <p className="text-sm font-black text-slate-900 dark:text-white">Pharmacy Express — Launching Soon</p>
+              <p className="text-[11px] text-slate-500 dark:text-slate-400 font-medium">Register your contact details to unlock flat 20% OFF on your first medicine order!</p>
             </div>
           </div>
 
           {successMsg ? (
             <div className="p-8 text-center space-y-4 bg-emerald-50 dark:bg-emerald-950/40 rounded-2xl border border-emerald-200 dark:border-emerald-800">
               <CheckCircle2 className="w-16 h-16 text-emerald-500 mx-auto animate-bounce" />
-              <h4 className="text-xl font-black text-slate-900 dark:text-white">Medicine Order Placed!</h4>
+              <h4 className="text-xl font-black text-slate-900 dark:text-white">You're on the Launch VIP List!</h4>
               <p className="text-sm text-slate-600 dark:text-slate-300 font-medium leading-relaxed max-w-md mx-auto">
                 {successMsg}
               </p>
               <div className="pt-4 flex gap-3 justify-center">
                 <button
-                  onClick={() => { setSuccessMsg(null); setMedicineList(''); }}
-                  className="px-6 py-2.5 bg-emerald-600 text-white font-bold text-xs rounded-xl shadow"
-                >
-                  Order More Medicines
-                </button>
-                <button
                   onClick={onClose}
-                  className="px-6 py-2.5 bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold text-xs rounded-xl"
+                  className="px-6 py-2.5 bg-emerald-600 text-white font-bold text-xs rounded-xl shadow"
                 >
                   Close
                 </button>
@@ -134,27 +131,13 @@ export default function PharmacyModal({ isOpen, onClose }: { isOpen: boolean; on
               </div>
 
               <div className="space-y-1">
-                <label className="text-xs font-bold text-slate-700 dark:text-slate-300">Medicine Names *</label>
+                <label className="text-xs font-bold text-slate-700 dark:text-slate-300">Medicines / Wellness Products Required (Optional)</label>
                 <textarea
-                  required
-                  rows={3}
-                  placeholder="e.g. Dolo 650 (10 tabs), Azithral 500 (1 strip), Volini gel…"
+                  rows={2}
+                  placeholder="e.g. Dolo 650, Multivitamins, Baby care..."
                   value={medicineList}
                   onChange={(e) => setMedicineList(e.target.value)}
                   className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs text-slate-900 dark:text-white font-medium focus:ring-2 focus:ring-emerald-500 outline-none resize-none"
-                />
-              </div>
-
-              <div className="space-y-1">
-                <label className="text-xs font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
-                  <Upload className="w-3.5 h-3.5" /> Prescription Note (optional)
-                </label>
-                <input
-                  type="text"
-                  placeholder="Doctor name / prescription details, if any"
-                  value={prescriptionNote}
-                  onChange={(e) => setPrescriptionNote(e.target.value)}
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs text-slate-900 dark:text-white font-medium focus:ring-2 focus:ring-emerald-500 outline-none"
                 />
               </div>
 
@@ -176,7 +159,7 @@ export default function PharmacyModal({ isOpen, onClose }: { isOpen: boolean; on
                   disabled={submitting}
                   className="px-6 py-2.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-black text-xs uppercase tracking-wider rounded-xl shadow-lg shadow-emerald-600/20 active:scale-95 transition-all"
                 >
-                  {submitting ? 'Placing...' : '💊 Order with 20% OFF'}
+                  {submitting ? 'Registering...' : '💊 Get Notified on Launch'}
                 </button>
               </div>
             </form>

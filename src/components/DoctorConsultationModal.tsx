@@ -78,9 +78,14 @@ export default function DoctorConsultationModal({ isOpen, onClose }: { isOpen: b
               <Stethoscope className="w-4 h-4" />
               <span>Doctor Consultation</span>
             </div>
-            <h3 className="text-xl font-black font-display">Request a Callback</h3>
+            <h3 className="text-xl font-black font-display flex items-center gap-2">
+              <span>Coming Soon</span>
+              <span className="text-xs bg-amber-400 text-slate-950 font-black px-2 py-0.5 rounded-full uppercase tracking-wider">
+                Soon
+              </span>
+            </h3>
             <p className="text-xs text-teal-100 font-medium">
-              Fill the form — our admin will call you back shortly.
+              24×7 Instant Tele-Consultation with top certified doctors is launching soon!
             </p>
           </div>
           <button
@@ -95,12 +100,10 @@ export default function DoctorConsultationModal({ isOpen, onClose }: { isOpen: b
           {done ? (
             <div className="p-6 text-center space-y-4 bg-emerald-50 dark:bg-emerald-950/40 rounded-2xl border border-emerald-200 dark:border-emerald-800">
               <CheckCircle2 className="w-14 h-14 text-emerald-500 mx-auto" />
-              <h4 className="text-lg font-black text-slate-900 dark:text-white">Request Submitted!</h4>
+              <h4 className="text-lg font-black text-slate-900 dark:text-white">You're on the Priority List!</h4>
               <p className="text-sm text-slate-600 dark:text-slate-300 font-medium leading-relaxed">
                 Thank you, {name.trim()}! 🙏<br />
-                Our admin will call you on <strong>+91 {phone.replace(/\D/g, '').slice(-10)}</strong> shortly
-                regarding your <strong>{specialist}</strong> consultation.
-                Please keep your phone reachable. 📞
+                We will notify <strong>+91 {phone.replace(/\D/g, '').slice(-10)}</strong> as soon as <strong>24×7 Doctor Consultation ({specialist})</strong> goes live on Food Mela! 📞
               </p>
               <button
                 onClick={resetAndClose}
@@ -111,6 +114,14 @@ export default function DoctorConsultationModal({ isOpen, onClose }: { isOpen: b
             </div>
           ) : (
             <form onSubmit={handleSubmit} className="space-y-4">
+              <div className="p-4 rounded-2xl bg-amber-50 dark:bg-amber-950/30 border border-amber-300/60 dark:border-amber-800/60 space-y-1 text-center">
+                <span className="text-2xl">🩺</span>
+                <h4 className="text-sm font-black text-slate-900 dark:text-white">24×7 Doctor Consultation Launching Soon</h4>
+                <p className="text-xs text-slate-600 dark:text-slate-300">
+                  Register your number below to get priority access & FREE first consultation on launch!
+                </p>
+              </div>
+
               {/* Mobile number */}
               <div className="space-y-1">
                 <label className="text-xs font-bold text-slate-700 dark:text-slate-300">Your Mobile Number *</label>
@@ -141,11 +152,10 @@ export default function DoctorConsultationModal({ isOpen, onClose }: { isOpen: b
 
               {/* Problem */}
               <div className="space-y-1">
-                <label className="text-xs font-bold text-slate-700 dark:text-slate-300">Your Problem *</label>
+                <label className="text-xs font-bold text-slate-700 dark:text-slate-300">Health Area of Interest (Optional)</label>
                 <textarea
-                  required
-                  rows={3}
-                  placeholder="Describe your health problem (e.g. fever since 2 days, stomach pain...)"
+                  rows={2}
+                  placeholder="e.g. General checkup, Pediatrics, Dermatology..."
                   value={problem}
                   onChange={(e) => setProblem(e.target.value)}
                   className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm text-slate-900 dark:text-white font-medium focus:ring-2 focus:ring-teal-500 outline-none resize-none"
@@ -154,7 +164,7 @@ export default function DoctorConsultationModal({ isOpen, onClose }: { isOpen: b
 
               {/* Specialist */}
               <div className="space-y-1">
-                <label className="text-xs font-bold text-slate-700 dark:text-slate-300">Which Doctor Specialist? *</label>
+                <label className="text-xs font-bold text-slate-700 dark:text-slate-300">Preferred Specialist *</label>
                 <select
                   value={specialist}
                   onChange={(e) => setSpecialist(e.target.value)}
@@ -171,10 +181,10 @@ export default function DoctorConsultationModal({ isOpen, onClose }: { isOpen: b
                 disabled={submitting}
                 className="w-full py-3.5 bg-gradient-to-r from-teal-600 to-emerald-600 hover:from-teal-700 hover:to-emerald-700 text-white font-black text-sm uppercase tracking-wider rounded-2xl shadow-lg shadow-teal-600/20 active:scale-[0.98] transition-all disabled:opacity-60"
               >
-                {submitting ? 'Submitting...' : 'Submit — Wait for Admin Call'}
+                {submitting ? 'Registering...' : '🔔 Notify Me on Launch'}
               </button>
               <p className="text-[11px] text-center text-slate-400 font-medium">
-                After submit, please wait — admin will call you back. 📞
+                Coming Soon on Food Mela — Get notified on launch! 📞
               </p>
             </form>
           )}

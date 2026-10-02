@@ -88,6 +88,7 @@ interface AppContextType {
   cartTotal: number;
   itemCount: number;
   deliveryFee: number;
+  smallOrderFee: number;
   taxes: number;
   platformFee: number;
   discountAmount: number;
@@ -388,10 +389,22 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   }, 0);
 
   const itemCount = cart.reduce((sum, item) => sum + item.quantity, 0);
-  const isGold = user?.isGoldMember || false;
-  const deliveryFee = (isGold || cartTotal >= 299) ? 0 : 39;
-  const platformFee = 7;
-  const taxes = Math.round(cartTotal * 0.05);
+  
+  // Peak Hour Surge calculation
+  const getPeakSurgeFee = () => {
+    const now = new Date();
+    const timeVal = now.getHours() + now.getMinutes() / 60;
+    if (timeVal >= 12.0 && timeVal <= 15.5) return 15; // Lunch Peak
+    if (timeVal >= 19.0 && timeVal <= 22.5) return 20; // Dinner Peak
+    if (now.getHours() >= 23 || now.getHours() < 4) return 25; // Late Night
+    return 0;
+  };
+
+  const baseDelivery = cartTotal >= 249 ? 0 : 10;
+  const deliveryFee = cartTotal > 0 ? baseDelivery + getPeakSurgeFee() : 0;
+  const platformFee = cartTotal > 0 ? 10 : 0;
+  const smallOrderFee = (cartTotal > 0 && cartTotal < 100) ? 20 : 0;
+  const taxes = 0;
 
   let discountAmount = 0;
   if (appliedCoupon) {
@@ -404,7 +417,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   }
 
   const goldSavings = isGold ? Math.round(cartTotal * 0.10) : 0;
-  const grandTotal = Math.max(0, cartTotal + deliveryFee + taxes + platformFee - discountAmount - goldSavings);
+  const grandTotal = Math.max(0, cartTotal + deliveryFee + smallOrderFee + taxes + platformFee - discountAmount - goldSavings);
 
   // Cart Handlers
   const addToCart = (
@@ -412,10 +425,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     selectedCustomizations: SelectedCustomization[] = [],
     instructions?: string
   ) => {
-    // Strictly prevent ₹0 or invalid items or non-allowed items from entering cart
+    // Strictly prevent ₹0 or invalid items from entering cart
     if (!item || !item.price || item.price <= 0) return;
-    const cat = (item.category || '').toLowerCase();
-    if (!cat.includes('vegetable') && !cat.includes('dal') && !cat.includes('pulse')) return;
 
     playNotificationSound('click');
     setCart((prevCart) => {
@@ -540,10 +551,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       return false;
     }
 
-    // Hard block: COD strictly capped at ₹100. Never place a COD order above it.
-    if (paymentMethod === 'COD' && grandTotal > 100) {
-      playNotificationSound('error');
-      alert(`Cash on Delivery is available only for orders up to ₹100. Your total is ₹${grandTotal} — please pay online via UPI or Card.`);
+    // Hard block: All website orders are capped at ₹100 max.
+    if (grandTotal > 100) {
+      playNotificationSound('remove');
+      alert(`Website checkout is disabled for orders over ₹100. Your order total is ₹${grandTotal}. Please place orders above ₹100 using the Food Mela Mobile App!`);
       return false;
     }
 
@@ -643,6 +654,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         cartTotal,
         itemCount,
         deliveryFee,
+        smallOrderFee,
         taxes,
         platformFee,
         discountAmount,

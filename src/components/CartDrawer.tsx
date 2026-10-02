@@ -11,6 +11,7 @@ export default function CartDrawer() {
     updateQuantity,
     cartTotal,
     deliveryFee,
+    smallOrderFee,
     taxes,
     platformFee,
     discountAmount,
@@ -33,7 +34,8 @@ export default function CartDrawer() {
   const [isPlacing, setIsPlacing] = useState(false);
   const [checkoutStep, setCheckoutStep] = useState<'cart' | 'checkout'>('cart');
 
-  // COD is only allowed for orders up to ₹100 (backend enforces this too).
+  // Website payment is strictly disabled for order amounts above ₹100.
+  const isPaymentAllowedOnWeb = grandTotal <= 100;
   const isCodAllowed = grandTotal <= 100;
   useEffect(() => {
     if (paymentMethod === 'COD' && !isCodAllowed) {
@@ -97,12 +99,10 @@ export default function CartDrawer() {
       return;
     }
 
-    // Hard block: COD is strictly not allowed above ₹100 — stop immediately,
-    // force online payment, never call placeOrder.
-    if (paymentMethod === 'COD' && grandTotal > 100) {
-      playNotificationSound('error');
-      alert(`Cash on Delivery is available only for orders up to ₹100. Your total is ₹${grandTotal} — please pay online via UPI or Card.`);
-      setPaymentMethod('UPI');
+    // Hard block: All website payments are disabled for grandTotal > 100
+    if (!isPaymentAllowedOnWeb) {
+      playNotificationSound('remove');
+      alert(`Website checkout is disabled for orders over ₹100. Your grand total is ₹${grandTotal}. Please place orders above ₹100 using the Food Mela Mobile App!`);
       return;
     }
 
@@ -175,6 +175,35 @@ export default function CartDrawer() {
             // ================= STEP 1: CART OVERVIEW =================
             <div className="space-y-4 sm:space-y-6">
               
+              {/* FREE Delivery Progress Banner (Threshold ₹249) */}
+              <div className={`p-3.5 rounded-2xl border text-xs font-bold transition-all ${
+                cartTotal >= 249
+                  ? 'bg-emerald-50 dark:bg-emerald-950/30 border-emerald-300 dark:border-emerald-800 text-emerald-800 dark:text-emerald-300'
+                  : 'bg-amber-50 dark:bg-amber-950/30 border-amber-300 dark:border-amber-800 text-amber-900 dark:text-amber-200'
+              }`}>
+                <div className="flex items-center justify-between gap-2 mb-2">
+                  <div className="flex items-center gap-2">
+                    <span className="text-base">{cartTotal >= 249 ? '🎉' : '🚚'}</span>
+                    <span>
+                      {cartTotal >= 249
+                        ? 'YAY! You unlocked 100% FREE Delivery!'
+                        : `Add ₹${Math.ceil(249 - cartTotal)} more for FREE Delivery!`}
+                    </span>
+                  </div>
+                  <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded-full bg-white/60 dark:bg-black/40">
+                    {cartTotal >= 249 ? 'FREE' : '₹10 FEE'}
+                  </span>
+                </div>
+                <div className="w-full bg-slate-200 dark:bg-slate-800 h-2 rounded-full overflow-hidden">
+                  <div
+                    className={`h-full transition-all duration-500 rounded-full ${
+                      cartTotal >= 249 ? 'bg-emerald-500' : 'bg-amber-500'
+                    }`}
+                    style={{ width: `${Math.min(100, (cartTotal / 249) * 100)}%` }}
+                  />
+                </div>
+              </div>
+
               {/* Itemized list */}
               <div className="space-y-3">
                 {cart.map((ci) => {
@@ -407,11 +436,22 @@ export default function CartDrawer() {
                   <span className="text-xs font-black uppercase tracking-wider">Select Payment Method</span>
                 </div>
 
+                {!isPaymentAllowedOnWeb && (
+                  <div className="p-3.5 rounded-2xl bg-amber-50 dark:bg-amber-950/40 border border-amber-300/70 dark:border-amber-700/70 text-amber-900 dark:text-amber-200 text-xs font-bold space-y-1">
+                    <p className="flex items-center gap-1.5 text-amber-800 dark:text-amber-300 font-extrabold">
+                      <span>⚠️</span> Website Payment Capped at ₹100
+                    </p>
+                    <p className="text-[11px] leading-relaxed font-normal text-slate-600 dark:text-slate-300">
+                      Website checkout is limited to orders up to ₹100. For orders over ₹100, please download and use the <strong>Food Mela Mobile App</strong>!
+                    </p>
+                  </div>
+                )}
+
                 <div className="grid grid-cols-1 gap-2">
                   {[
-                    { id: 'UPI', title: 'Instant UPI (GPay/PhonePe)', subtitle: 'Waived Platform Fee' },
-                    { id: 'CARD', title: 'Credit / Debit Card', subtitle: 'Secure Online Gateway' },
-                    { id: 'COD', title: 'Cash on Delivery (COD)', subtitle: isCodAllowed ? 'Pay when food arrives · up to ₹100' : 'Available only up to ₹100 — pay online', disabled: !isCodAllowed },
+                    { id: 'UPI', title: 'Instant UPI (GPay/PhonePe)', subtitle: isPaymentAllowedOnWeb ? 'Waived Platform Fee' : 'Payment disabled on website for > ₹100', disabled: !isPaymentAllowedOnWeb },
+                    { id: 'CARD', title: 'Credit / Debit Card', subtitle: isPaymentAllowedOnWeb ? 'Secure Online Gateway' : 'Payment disabled on website for > ₹100', disabled: !isPaymentAllowedOnWeb },
+                    { id: 'COD', title: 'Cash on Delivery (COD)', subtitle: isCodAllowed ? 'Pay when food arrives · up to ₹100' : 'Available only up to ₹100', disabled: !isCodAllowed },
                   ].map((pay: { id: string; title: string; subtitle: string; disabled?: boolean }) => {
                     const isSelected = paymentMethod === pay.id;
                     const isDisabled = !!pay.disabled;
@@ -482,6 +522,13 @@ export default function CartDrawer() {
                 </span>
               </div>
 
+              {smallOrderFee > 0 && (
+                <div className="flex items-center justify-between text-orange-600 dark:text-orange-400">
+                  <span>Small Order Surcharge (Orders &lt; ₹100)</span>
+                  <span className="font-mono-numbers">+₹{smallOrderFee}</span>
+                </div>
+              )}
+
               <div className="flex items-center justify-between">
                 <span>Restaurant Taxes & GST</span>
                 <span className="font-mono-numbers text-slate-900 dark:text-white">₹{taxes}</span>
@@ -522,14 +569,20 @@ export default function CartDrawer() {
                 </button>
                 <button
                   onClick={handleCheckoutSubmit}
-                  disabled={isPlacing}
-                  className="flex-1 py-3.5 px-4 sm:px-6 bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white font-black text-xs sm:text-sm rounded-xl transition-all shadow-lg shadow-orange-500/10 active:scale-[0.98] flex items-center justify-center gap-2 min-h-[44px]"
+                  disabled={isPlacing || !isPaymentAllowedOnWeb}
+                  className={`flex-1 py-3.5 px-4 sm:px-6 text-white font-black text-xs sm:text-sm rounded-xl transition-all shadow-lg min-h-[44px] flex items-center justify-center gap-2 ${
+                    !isPaymentAllowedOnWeb
+                      ? 'bg-slate-400 dark:bg-slate-700 cursor-not-allowed shadow-none'
+                      : 'bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 shadow-orange-500/10 active:scale-[0.98]'
+                  }`}
                 >
                   {isPlacing ? (
                     <>
                       <Loader2 className="w-4 h-4 animate-spin shrink-0" />
                       <span>{paymentMethod === 'COD' ? 'Confirming Order...' : 'Redirecting to PayU Server...'}</span>
                     </>
+                  ) : !isPaymentAllowedOnWeb ? (
+                    <span>Capped at ₹100 (Use App for &gt;₹100)</span>
                   ) : !user ? (
                     <>
                       <Phone className="w-4 h-4 shrink-0" />
