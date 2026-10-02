@@ -97,6 +97,15 @@ export default function CartDrawer() {
       return;
     }
 
+    // Hard block: COD is strictly not allowed above ₹100 — stop immediately,
+    // force online payment, never call placeOrder.
+    if (paymentMethod === 'COD' && grandTotal > 100) {
+      playNotificationSound('error');
+      alert(`Cash on Delivery is available only for orders up to ₹100. Your total is ₹${grandTotal} — please pay online via UPI or Card.`);
+      setPaymentMethod('UPI');
+      return;
+    }
+
     setIsPlacing(true);
     const finalAddr = getEffectiveAddress();
     

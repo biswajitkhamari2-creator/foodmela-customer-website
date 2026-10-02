@@ -540,6 +540,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       return false;
     }
 
+    // Hard block: COD strictly capped at ₹100. Never place a COD order above it.
+    if (paymentMethod === 'COD' && grandTotal > 100) {
+      playNotificationSound('error');
+      alert(`Cash on Delivery is available only for orders up to ₹100. Your total is ₹${grandTotal} — please pay online via UPI or Card.`);
+      return false;
+    }
+
     const deliveryAddress = customAddress || user.address || currentLocation || 'Birmaharajpur, Subarnapur, Odisha - 767018';
 
     // ─── 1. REAL PAYU ONLINE PAYMENT REDIRECT (UPI & CARD) ─────────────────────
