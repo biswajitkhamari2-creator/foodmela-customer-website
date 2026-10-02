@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useApp, playNotificationSound } from '../context/AppContext';
 import { X, Trash2, Tag, Percent, MapPin, CreditCard, ChevronRight, CheckCircle, Gift, Loader2, Phone, Edit3 } from 'lucide-react';
 
@@ -32,6 +32,14 @@ export default function CartDrawer() {
   const [paymentMethod, setPaymentMethod] = useState('UPI');
   const [isPlacing, setIsPlacing] = useState(false);
   const [checkoutStep, setCheckoutStep] = useState<'cart' | 'checkout'>('cart');
+
+  // COD is only allowed for orders up to ₹100 (backend enforces this too).
+  const isCodAllowed = grandTotal <= 100;
+  useEffect(() => {
+    if (paymentMethod === 'COD' && !isCodAllowed) {
+      setPaymentMethod('UPI');
+    }
+  }, [paymentMethod, isCodAllowed]);
 
   // Safely compute addresses list without ANY risk of undefined.map crash
   const addressesList = useMemo(() => {
@@ -394,16 +402,20 @@ export default function CartDrawer() {
                   {[
                     { id: 'UPI', title: 'Instant UPI (GPay/PhonePe)', subtitle: 'Waived Platform Fee' },
                     { id: 'CARD', title: 'Credit / Debit Card', subtitle: 'Secure Online Gateway' },
-                    { id: 'COD', title: 'Cash on Delivery (COD)', subtitle: 'Pay when food arrives' },
-                  ].map((pay) => {
+                    { id: 'COD', title: 'Cash on Delivery (COD)', subtitle: isCodAllowed ? 'Pay when food arrives · up to ₹100' : 'Available only up to ₹100 — pay online', disabled: !isCodAllowed },
+                  ].map((pay: { id: string; title: string; subtitle: string; disabled?: boolean }) => {
                     const isSelected = paymentMethod === pay.id;
+                    const isDisabled = !!pay.disabled;
                     return (
                       <button
                         key={pay.id}
+                        disabled={isDisabled}
                         onClick={() => { playNotificationSound('click'); setPaymentMethod(pay.id); }}
                         className={`w-full text-left p-3 rounded-xl border transition-all text-xs flex items-center justify-between ${
-                          isSelected 
-                            ? 'bg-orange-50/40 border-orange-500 dark:bg-orange-950/20 dark:border-orange-500' 
+                          isDisabled
+                            ? 'bg-slate-100/60 dark:bg-slate-800/30 border-slate-200 dark:border-slate-800 opacity-50 cursor-not-allowed'
+                            : isSelected
+                            ? 'bg-orange-50/40 border-orange-500 dark:bg-orange-950/20 dark:border-orange-500'
                             : 'bg-slate-50/50 dark:bg-slate-800/40 border-slate-100 dark:border-slate-800'
                         }`}
                       >
