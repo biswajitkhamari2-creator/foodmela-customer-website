@@ -423,12 +423,12 @@ class ErrorBoundary extends React.Component<{ children: React.ReactNode }, { has
 
 export default function App() {
   return (
-    <AppProvider>
-      <MaintenanceGate>
+    <MaintenanceGate>
+      <AppProvider>
         <ErrorBoundary>
           <AppContent />
         </ErrorBoundary>
-      </MaintenanceGate>
-    </AppProvider>
+      </AppProvider>
+    </MaintenanceGate>
   );
 }
