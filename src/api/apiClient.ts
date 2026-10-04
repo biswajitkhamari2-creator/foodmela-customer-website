@@ -824,12 +824,11 @@ export const apiClient = {
         };
       }).filter((item) => item.price > 0);
 
-      // Return ONLY admin-added items (custom_products).
-      // Built-in MOCK_CATALOG items are hidden by owner request.
-      return [...customItems];
+      // Return custom items first, followed by base catalog
+      return [...customItems, ...baseCatalog];
     } catch (e) {
-      console.warn('Catalog fetch failed:', e);
-      return [];
+      console.warn('Catalog fetch fallback to MOCK_CATALOG:', e);
+      return MOCK_CATALOG;
     }
   },
 

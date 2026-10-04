@@ -155,10 +155,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       const saved = localStorage.getItem('foodmela_cart');
       if (!saved) return [];
       const parsed: CartItem[] = JSON.parse(saved);
-      // Filter out any legacy ₹0 items
+      // Strictly filter out any legacy ₹0 items or cooked food items
       return parsed.filter((ci) => {
         if (!ci.item || !ci.item.price || ci.item.price <= 0) return false;
-        return true;
+        const cat = (ci.item.category || '').toLowerCase();
+        return cat.includes('vegetable') || cat.includes('dal') || cat.includes('pulse');
       });
     } catch {
       return [];
@@ -188,9 +189,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [customizingItem, setCustomizingItem] = useState<CatalogItem | null>(null);
   const [cartDrawerOpen, setCartDrawerOpen] = useState(false);
 
-  // Catalog State (ONLY admin-added items from Firestore custom_products)
-  const [catalog, setCatalog] = useState<CatalogItem[]>([]);
-  const [categories, setCategories] = useState<string[]>(['All']);
+  // Catalog State (Strictly Dals & Fresh Vegetables, No ₹0 items, No cooked food)
+  const [catalog, setCatalog] = useState<CatalogItem[]>(MOCK_CATALOG);
+  const [categories, setCategories] = useState<string[]>([
+    'All',
+    'Dals & Pulses',
+    'Vegetables',
+  ]);
   const [loadingCatalog, setLoadingCatalog] = useState<boolean>(false);
 
   // Filters State
@@ -206,7 +211,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const loadCatalog = async () => {
       setLoadingCatalog(true);
       const items = await apiClient.getCatalog();
-      const validItems = items.filter((item) => item.price && item.price > 0);
+      const validItems = items.filter((item) => {
+        if (!item.price || item.price <= 0) return false;
+        const cat = (item.category || '').toLowerCase();
+        return cat.includes('vegetable') || cat.includes('dal') || cat.includes('pulse');
+      });
       setCatalog(validItems);
       const uniqueCategories = Array.from(new Set(validItems.map((i) => i.category || 'Vegetables')));
       setCategories(['All', ...uniqueCategories]);
