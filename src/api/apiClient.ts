@@ -770,12 +770,21 @@ export const apiClient = {
           if (price <= 0) return;
 
           const mrp = data.mrp != null && Number(data.mrp) > price ? Number(data.mrp) : undefined;
-          const rawCat = (data.category || '').toLowerCase();
+          const rawCat = String(data.category || 'Grocery').trim();
 
-          let categoryLabel = 'Grocery';
-          if (rawCat.includes('veg') || rawCat === 'vegetable') categoryLabel = 'Vegetables';
-          else if (rawCat.includes('dal') || rawCat.includes('pulse') || rawCat === 'grain') categoryLabel = 'Dals & Pulses';
-          else if (rawCat.includes('food') || rawCat.includes('cooked')) categoryLabel = 'Fresh Meals';
+          const CATEGORY_LABELS: Record<string, string> = {
+            cooked_food: 'Cooked Food', non_veg: 'Non-Veg',
+            fast_food: 'Fast Food', beverages: 'Drinks & Beverages',
+            sweets: 'Sweets', snacks: 'Snacks',
+            vegetables: 'Vegetables', vegetable: 'Vegetables',
+            fruits: 'Fruits', grocery: 'Grocery & Staples',
+            dals_pulses: 'Dals & Pulses', grain: 'Dals & Pulses',
+            chaat: 'Chaat & Street Food', dairy: 'Dairy',
+            eggs_meat: 'Eggs & Meat', breakfast: 'Breakfast',
+            momos: 'Momos & Dimsum', fashion: 'Fashion & Dress',
+            furniture: 'Furniture',
+          };
+          const categoryLabel = CATEGORY_LABELS[rawCat.toLowerCase()] ?? rawCat;
 
           customItems.push({
             id: docSnap.id,

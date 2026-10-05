@@ -211,11 +211,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const loadCatalog = async () => {
       setLoadingCatalog(true);
       const items = await apiClient.getCatalog();
-      const validItems = items.filter((item) => {
-        if (!item.price || item.price <= 0) return false;
-        const cat = (item.category || '').toLowerCase();
-        return cat.includes('vegetable') || cat.includes('dal') || cat.includes('pulse');
-      });
+      const validItems = items.filter((item) => item.price && item.price > 0);
       setCatalog(validItems);
       const uniqueCategories = Array.from(new Set(validItems.map((i) => i.category || 'Vegetables')));
       setCategories(['All', ...uniqueCategories]);
