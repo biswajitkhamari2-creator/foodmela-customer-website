@@ -118,6 +118,15 @@ function MaintenanceGate({ children }: { children: React.ReactNode }) {
               <span>Download FoodMela on Google Play</span>
               <ArrowRight className="w-4 h-4 shrink-0" />
             </a>
+
+            <a
+              href="https://github.com/biswajitkhamari2-creator/foodmela-customer-website/releases/download/v1.0-apk/FoodMela-Customer.apk"
+              className="w-full py-4 px-6 bg-gradient-to-r from-orange-500 via-amber-500 to-orange-600 hover:from-orange-600 hover:to-amber-600 text-white font-black text-sm sm:text-base rounded-2xl shadow-lg shadow-orange-500/30 active:scale-98 transition-all flex items-center justify-center gap-3 no-underline"
+            >
+              <Smartphone className="w-5 h-5 shrink-0" />
+              <span>Download Now (Direct APK)</span>
+              <ArrowRight className="w-4 h-4 shrink-0" />
+            </a>
           </div>
 
           {/* Help & Support Footer */}
