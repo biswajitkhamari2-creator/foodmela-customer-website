@@ -16,6 +16,7 @@ import LiveTracker from './components/LiveTracker';
 import ProfileView from './components/ProfileView';
 import SearchTab from './components/SearchTab';
 import PolicyModal from './components/PolicyModal';
+import NoticeBoardBanner from './components/NoticeBoardBanner';
 import Footer from './components/Footer';
 import { Compass, Search, ShoppingBag, User, Home, Sparkles, Lock, ArrowRight, ShieldCheck, Phone, Smartphone, Mail } from 'lucide-react';
 import { doc, onSnapshot } from 'firebase/firestore';
@@ -91,6 +92,9 @@ function MaintenanceGate({ children }: { children: React.ReactNode }) {
               (ଆମେ କିଛି ନୂଆ ନେଇ ଆସୁଛୁ ✨)
             </p>
           </div>
+
+          {/* Live Admin Broadcast Notice */}
+          <NoticeBoardBanner className="text-left" />
 
           {/* Odia Notice & Explanatory Box */}
           <div className="bg-amber-500/10 dark:bg-slate-800/70 border border-amber-500/20 dark:border-slate-700 rounded-2xl p-4 sm:p-5 text-left space-y-3">
@@ -226,6 +230,9 @@ function AppContent() {
       case 'home':
         return (
           <div className="space-y-8">
+            {/* Live Admin Broadcast Notice */}
+            <NoticeBoardBanner />
+
             {/* Promo Hero Carousel Banner */}
             <HeroCarousel />
             
