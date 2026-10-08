@@ -22,12 +22,19 @@ export default function LiveTracker() {
     { key: 'delivered', label: 'Delivered', desc: 'Handed over fresh & hot!' },
   ];
 
-  const getStepIndex = (status: string) => {
+  const getStepIndex = (status: string, stage?: number) => {
+    if (stage !== undefined && stage !== null && !isNaN(Number(stage))) {
+      const stg = Number(stage);
+      if (stg >= 3) return 4;
+      if (stg === 2) return 3;
+      if (stg === 1) return 1;
+      if (stg === 0) return 0;
+    }
     const s = String(status || '').toLowerCase();
-    if (s.includes('deliver')) return 4;
-    if (s.includes('out')) return 3;
+    if (s.includes('delivered') && !s.includes('out for delivery') && !s.includes('waiting for delivery')) return 4;
+    if (s.includes('out') || s.includes('on the way')) return 3;
     if (s.includes('rider') || s.includes('assign')) return 2;
-    if (s.includes('kitchen') || s.includes('pack') || s.includes('confirm')) return 1;
+    if (s.includes('kitchen') || s.includes('pack') || s.includes('confirm') || s.includes('accept')) return 1;
     return 0;
   };
 
@@ -44,9 +51,13 @@ export default function LiveTracker() {
 
     all.forEach((o) => {
       const st = String(o.status || '').toLowerCase();
-      if (st.includes('cancel')) {
+      const stageVal = (o as any).stage;
+      const stageNum = stageVal !== undefined && stageVal !== null ? Number(stageVal) : NaN;
+      const isDelivered = (stageNum >= 3) ||
+        (![0, 1, 2, -1].includes(stageNum) && st.includes('delivered') && !st.includes('out for delivery') && !st.includes('waiting for delivery'));
+      if (st.includes('cancel') || stageNum === -1) {
         cancelled.push(o);
-      } else if (st.includes('deliver') || (o.stage !== undefined && (o as any).stage >= 3)) {
+      } else if (isDelivered) {
         past.push(o);
       } else {
         active.push(o);
@@ -57,7 +68,7 @@ export default function LiveTracker() {
   }, [activeOrder, pastOrders]);
 
   const displayedActive = activeOrder || (activeList.length > 0 ? activeList[0] : null);
-  const activeIndex = displayedActive ? getStepIndex(displayedActive.status) : 0;
+  const activeIndex = displayedActive ? getStepIndex(displayedActive.status, (displayedActive as any).stage) : 0;
 
   // Selected Order for Bill
   const viewInvoiceOrder = useMemo(() => {

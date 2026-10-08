@@ -1040,9 +1040,11 @@ export const apiClient = {
           const items = parseOrderItems(o.items, totalVal);
           const stage = typeof o.stage === 'number' ? o.stage : (o.status === 'delivered' || o.status === 'Delivered' ? 3 : 0);
           let statusText: 'placed' | 'confirmed' | 'out_for_delivery' | 'delivered' = 'placed';
-          if (stage >= 3 || String(o.status || '').toLowerCase().includes('delivered')) statusText = 'delivered';
-          else if (stage === 2 || String(o.status || '').toLowerCase().includes('out for delivery')) statusText = 'out_for_delivery';
-          else if (stage === 1 || String(o.status || '').toLowerCase().includes('accept') || String(o.status || '').toLowerCase().includes('pack')) statusText = 'confirmed';
+          const sLower = String(o.status || '').toLowerCase();
+          const isDeliv = (stage >= 3) || (sLower.includes('delivered') && !sLower.includes('out for delivery') && !sLower.includes('waiting for delivery'));
+          if (isDeliv) statusText = 'delivered';
+          else if (stage === 2 || sLower.includes('out for delivery')) statusText = 'out_for_delivery';
+          else if (stage === 1 || sLower.includes('accept') || sLower.includes('pack')) statusText = 'confirmed';
 
           ordersList.push({
             id: orderId,
@@ -1085,9 +1087,11 @@ export const apiClient = {
         const items = parseOrderItems(o.items, totalVal);
         const stage = typeof o.stage === 'number' ? o.stage : (o.status === 'delivered' || o.status === 'Delivered' ? 3 : 0);
         let statusText: 'placed' | 'confirmed' | 'out_for_delivery' | 'delivered' = 'placed';
-        if (stage >= 3 || String(o.status || '').toLowerCase().includes('delivered')) statusText = 'delivered';
-        else if (stage === 2 || String(o.status || '').toLowerCase().includes('out for delivery')) statusText = 'out_for_delivery';
-        else if (stage === 1 || String(o.status || '').toLowerCase().includes('accept') || String(o.status || '').toLowerCase().includes('pack')) statusText = 'confirmed';
+        const sLower = String(o.status || '').toLowerCase();
+        const isDeliv = (stage >= 3) || (sLower.includes('delivered') && !sLower.includes('out for delivery') && !sLower.includes('waiting for delivery'));
+        if (isDeliv) statusText = 'delivered';
+        else if (stage === 2 || sLower.includes('out for delivery')) statusText = 'out_for_delivery';
+        else if (stage === 1 || sLower.includes('accept') || sLower.includes('pack')) statusText = 'confirmed';
 
         ordersList.push({
           id: orderId,
@@ -1124,9 +1128,11 @@ export const apiClient = {
         const items = parseOrderItems(o.items, totalVal);
         const stage = typeof o.stage === 'number' ? o.stage : (o.status === 'delivered' || o.status === 'Delivered' ? 3 : 0);
         let statusText: 'placed' | 'confirmed' | 'out_for_delivery' | 'delivered' = 'placed';
-        if (stage >= 3 || String(o.status || '').toLowerCase().includes('delivered')) statusText = 'delivered';
-        else if (stage === 2 || String(o.status || '').toLowerCase().includes('out for delivery')) statusText = 'out_for_delivery';
-        else if (stage === 1 || String(o.status || '').toLowerCase().includes('accept') || String(o.status || '').toLowerCase().includes('pack')) statusText = 'confirmed';
+        const sLower = String(o.status || '').toLowerCase();
+        const isDeliv = (stage >= 3) || (sLower.includes('delivered') && !sLower.includes('out for delivery') && !sLower.includes('waiting for delivery'));
+        if (isDeliv) statusText = 'delivered';
+        else if (stage === 2 || sLower.includes('out for delivery')) statusText = 'out_for_delivery';
+        else if (stage === 1 || sLower.includes('accept') || sLower.includes('pack')) statusText = 'confirmed';
 
         ordersList.push({
           id: orderId,
