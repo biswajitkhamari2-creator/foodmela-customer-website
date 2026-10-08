@@ -1174,7 +1174,9 @@ export const apiClient = {
     const payStatus = isCod ? 'PENDING' : 'PAID';
     const payType = isCod ? 'COD' : 'PREPAID';
 
-    // Send to backend API
+    // Send to backend API — the backend owns the official order ID and mirrors
+    // the row to Firestore itself. Only enrich that same doc on success.
+    let backendOk = false;
     try {
       const res = await req<{ success: boolean; order?: any; apiToken?: string }>('/api/orders/place', {
         method: 'POST',
@@ -1193,6 +1195,7 @@ export const apiClient = {
       });
 
       if (res && res.order) {
+        backendOk = true;
         finalOrderId = res.order.id || res.order.order_number || finalOrderId;
         if (res.order.deliveryOtp) finalOtp = res.order.deliveryOtp;
       }
@@ -1206,10 +1209,15 @@ export const apiClient = {
       console.error('Backend placeOrder fallback:', e);
     }
 
+    // Backend rejected/failed → report failure, never write an orphan local row.
+    if (!backendOk) {
+      return { success: false, orderId: '', deliveryOtp: '' };
+    }
+
     const cleanDigits = finalOrderId.replace(/[^0-9]/g, '');
     const invoiceNumber = `INV-${cleanDigits || finalOrderId}`;
 
-    // Mirror to Firestore with full rate & payment breakdowns
+    // Enrich the SAME backend-owned doc (merge) with rate & payment breakdowns
     try {
       await setDoc(doc(db, 'orders', finalOrderId), {
         orderId: finalOrderId,
