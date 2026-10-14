@@ -155,7 +155,7 @@ export default function CatalogGrid() {
       {/* Special Category Coming Soon Views */}
       {selectedCategory === 'fashion' ? (
         <div className="p-8 sm:p-12 text-center space-y-6 bg-gradient-to-b from-purple-500/10 via-pink-500/5 to-white dark:to-slate-900 rounded-3xl border border-purple-500/20 shadow-lg animate-fade-in">
-          <div className="w-20 h-20 mx-auto rounded-3xl bg-gradient-to-tr from-purple-600 to-pink-500 flex items-center justify-center text-white text-4xl shadow-xl shadow-purple-500/30 animate-bounce">
+          <div className="w-20 h-20 mx-auto rounded-3xl bg-gradient-to-tr from-purple-600 to-pink-500 flex items-center justify-center text-white text-4xl shadow-xl shadow-purple-500/30 animate-bounce font-emoji" data-emoji="true">
             👗
           </div>
           <div className="space-y-2 max-w-md mx-auto">
@@ -178,7 +178,7 @@ export default function CatalogGrid() {
         </div>
       ) : selectedCategory === 'furniture' ? (
         <div className="p-8 sm:p-12 text-center space-y-6 bg-gradient-to-b from-indigo-500/10 via-blue-500/5 to-white dark:to-slate-900 rounded-3xl border border-indigo-500/20 shadow-lg animate-fade-in">
-          <div className="w-20 h-20 mx-auto rounded-3xl bg-gradient-to-tr from-indigo-600 to-blue-500 flex items-center justify-center text-white text-4xl shadow-xl shadow-indigo-500/30 animate-bounce">
+          <div className="w-20 h-20 mx-auto rounded-3xl bg-gradient-to-tr from-indigo-600 to-blue-500 flex items-center justify-center text-white text-4xl shadow-xl shadow-indigo-500/30 animate-bounce font-emoji" data-emoji="true">
             🛋️
           </div>
           <div className="space-y-2 max-w-md mx-auto">

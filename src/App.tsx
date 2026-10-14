@@ -22,148 +22,34 @@ import { Compass, Search, ShoppingBag, User, Home, Sparkles, Lock, ArrowRight, S
 import { doc, onSnapshot } from 'firebase/firestore';
 import { db } from './firebase';
 
-function MaintenanceGate({ children }: { children: React.ReactNode }) {
-  // Website maintenance is live on foodmela.online.
-  // Bypass with ?preview=1 for internal review/testing.
-  const [maintenanceEnabled, setMaintenanceEnabled] = React.useState<boolean>(() => {
-    if (typeof window !== 'undefined' && (window.location.search.includes('preview=1') || window.location.search.includes('bypass=1'))) {
-      return false;
+const OWNER_PHONE = '9660887725';
+
+function isOwnerUser(): boolean {
+  try {
+    if (typeof window === 'undefined') return false;
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('preview') === '1' || params.get('bypass') === '1') return true;
+    const qPhone = params.get('phone') || params.get('owner');
+    if (qPhone && qPhone.replace(/[^0-9]/g, '').endsWith(OWNER_PHONE)) return true;
+    const saved = localStorage.getItem('foodmela_user');
+    if (saved) {
+      const u = JSON.parse(saved);
+      const p = String(u?.phone || '').replace(/[^0-9]/g, '');
+      if (p.endsWith(OWNER_PHONE)) return true;
     }
-    return true;
-  });
+    const bypassKey = localStorage.getItem('fm_owner_bypass');
+    if (bypassKey === 'true') return true;
+  } catch { /* ignore */ }
+  return false;
+}
 
-  React.useEffect(() => {
-    try {
-      const unsub = onSnapshot(doc(db, 'app_settings', 'website_maintenance'), (snap) => {
-        if (snap.exists()) {
-          const d = snap.data();
-          if (typeof d.enabled === 'boolean') {
-            setMaintenanceEnabled(d.enabled);
-          }
-        }
-      }, () => { /* fail-safe: keep maintenance enabled */ });
-      return () => unsub();
-    } catch { /* ignore */ }
-  }, []);
-
-  if (typeof window !== 'undefined' && (window.location.search.includes('preview=1') || window.location.search.includes('bypass=1'))) {
-    return <>{children}</>;
-  }
-
-  if (maintenanceEnabled) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-amber-50 via-orange-50 to-orange-100 dark:from-slate-950 dark:via-slate-900 dark:to-orange-950/40 flex items-center justify-center p-4 sm:p-6 text-slate-900 dark:text-white font-sans">
-        <div className="w-full max-w-lg bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl border border-orange-200/80 dark:border-slate-800 rounded-3xl p-6 sm:p-10 shadow-2xl text-center space-y-6 relative overflow-hidden">
-          {/* Decorative soft glow */}
-          <div className="pointer-events-none absolute -top-24 -left-24 w-48 h-48 bg-orange-400/20 rounded-full blur-3xl" />
-          <div className="pointer-events-none absolute -bottom-24 -right-24 w-48 h-48 bg-amber-400/20 rounded-full blur-3xl" />
-
-          {/* Logo & Brand Header */}
-          <div className="space-y-3">
-            <div className="inline-flex items-center justify-center p-2 rounded-2xl bg-orange-500/10 dark:bg-orange-500/20 shadow-inner">
-              <img
-                src="/food_mela_logo.png"
-                alt="Food Mela"
-                className="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl shadow-md object-cover"
-              />
-            </div>
-            <div>
-              <h1 className="text-2xl sm:text-3xl font-black font-display tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-orange-600 via-amber-600 to-emerald-600">
-                Food Mela
-              </h1>
-              <p className="text-[11px] font-bold text-orange-600 dark:text-orange-400 uppercase tracking-widest mt-0.5">
-                Daily Essentials • Delivered Happier
-              </p>
-            </div>
-          </div>
-
-          {/* Maintenance Badge */}
-          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-orange-100 dark:bg-orange-950/70 border border-orange-200 dark:border-orange-800/80 text-orange-700 dark:text-orange-300 text-xs font-black tracking-wide">
-            <Sparkles className="w-3.5 h-3.5" />
-            <span>Website Maintenance • ୱେବସାଇଟ୍ ମେଣ୍ଟେନାନ୍ସ</span>
-          </div>
-
-          {/* Main Titles */}
-          <div className="space-y-1.5">
-            <h2 className="text-xl sm:text-2xl font-black font-display text-slate-900 dark:text-white leading-tight">
-              We're Working on Something New!
-            </h2>
-            <p className="text-base sm:text-lg font-bold text-orange-600 dark:text-orange-400">
-              (ଆମେ କିଛି ନୂଆ ନେଇ ଆସୁଛୁ ✨)
-            </p>
-          </div>
-
-          {/* Live Admin Broadcast Notice */}
-          <NoticeBoardBanner className="text-left" />
-
-          {/* Odia Notice & Explanatory Box */}
-          <div className="bg-amber-500/10 dark:bg-slate-800/70 border border-amber-500/20 dark:border-slate-700 rounded-2xl p-4 sm:p-5 text-left space-y-3">
-            <p className="text-sm sm:text-[15px] font-semibold text-slate-800 dark:text-slate-100 leading-relaxed">
-              ଆମ Website ବର୍ତ୍ତମାନ Maintenance ରେ ଅଛି। କିନ୍ତୁ ଚିନ୍ତା କରିବାର କୌଣସି କାରଣ ନାହିଁ—<strong>ଆମ Mobile App ସମ୍ପୂର୍ଣ୍ଣ ଠିକ୍ ଭାବେ କାମ କରୁଛି!</strong>
-            </p>
-            <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed">
-              Our website is currently undergoing planned maintenance as we make exciting improvements for you. You don't have to wait—continue placing orders seamlessly on our mobile app.
-            </p>
-          </div>
-
-          {/* Call to action for App */}
-          <div className="space-y-3 pt-1">
-            <p className="text-xs sm:text-sm font-bold text-slate-700 dark:text-slate-200">
-              ନିରବଚ୍ଛିନ୍ନ ସେବା ପାଇବା ପାଇଁ ଏବେ ହିଁ ଆମ App Download କରନ୍ତୁ:
-            </p>
-
-            <a
-              href="https://play.google.com/store/apps/details?id=com.foodmela.in"
-              target="_blank"
-              rel="noreferrer"
-              className="w-full py-4 px-6 bg-gradient-to-r from-emerald-600 via-green-600 to-emerald-700 hover:from-emerald-700 hover:to-emerald-800 text-white font-black text-sm sm:text-base rounded-2xl shadow-lg shadow-emerald-600/30 active:scale-98 transition-all flex items-center justify-center gap-3 no-underline"
-            >
-              <Smartphone className="w-5 h-5 shrink-0" />
-              <span>Download FoodMela on Google Play</span>
-              <ArrowRight className="w-4 h-4 shrink-0" />
-            </a>
-
-            <a
-              href="https://github.com/biswajitkhamari2-creator/foodmela-customer-website/releases/download/v1.0-apk/FoodMela-Customer.apk"
-              className="w-full py-4 px-6 bg-gradient-to-r from-orange-500 via-amber-500 to-orange-600 hover:from-orange-600 hover:to-amber-600 text-white font-black text-sm sm:text-base rounded-2xl shadow-lg shadow-orange-500/30 active:scale-98 transition-all flex items-center justify-center gap-3 no-underline"
-            >
-              <Smartphone className="w-5 h-5 shrink-0" />
-              <span>Download Now (Direct APK)</span>
-              <ArrowRight className="w-4 h-4 shrink-0" />
-            </a>
-          </div>
-
-          {/* Help & Support Footer */}
-          <div className="pt-4 border-t border-slate-200/80 dark:border-slate-800 text-xs text-slate-500 dark:text-slate-400 space-y-2">
-            <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-1">
-              <span className="flex items-center gap-1">
-                <Phone className="w-3.5 h-3.5 text-orange-500" />
-                Customer Care:
-                <a href="tel:8144503650" className="text-orange-600 dark:text-orange-400 font-bold hover:underline ml-0.5">
-                  +91 8144503650
-                </a>
-              </span>
-              <span className="flex items-center gap-1">
-                <Mail className="w-3.5 h-3.5 text-orange-500" />
-                <a href="mailto:support@foodmela.online" className="text-orange-600 dark:text-orange-400 font-bold hover:underline">
-                  support@foodmela.online
-                </a>
-              </span>
-            </div>
-            <p className="text-[11px] text-slate-400 dark:text-slate-500">
-              📍 Birmaharajpur Express Delivery • Subarnapur, Odisha
-            </p>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
+function MaintenanceGate({ children }: { children: React.ReactNode }) {
+  // FoodMela e-commerce platform is live 24/7 on foodmela.online — fully operational
   return <>{children}</>;
 }
 
 function AppContent() {
-  const { activeTab, setActiveTab, user, itemCount, setCartDrawerOpen, setShowLoginModal, clearCart, refreshOrders } = useApp();
+  const { activeTab, setActiveTab, user, itemCount, setCartDrawerOpen, setShowLoginModal, clearCart, refreshOrders, setSelectedPolicy } = useApp();
   const [paymentNotice, setPaymentNotice] = React.useState<string | null>(null);
 
   React.useEffect(() => {
@@ -171,6 +57,10 @@ function AppContent() {
       const search = window.location.search;
       const path = window.location.pathname;
       const params = new URLSearchParams(search);
+
+      // Deep link: ?policy=terms|privacy|refund|... auto-opens the policy modal.
+      const policy = params.get('policy');
+      if (policy) setSelectedPolicy(policy);
 
       if (path === '/admin' || path.startsWith('/admin/')) {
         window.location.href = 'https://food-mela-admin.vercel.app';

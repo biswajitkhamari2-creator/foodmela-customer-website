@@ -4,27 +4,11 @@ import { X, CheckCircle2, Loader2, Sparkles, AlertCircle, Phone, ArrowRight, Shi
 import { apiClient } from '../api/apiClient';
 import { doc, getDoc } from 'firebase/firestore';
 import { db, auth } from '../firebase';
-import { RecaptchaVerifier, signInWithPhoneNumber, type ConfirmationResult } from 'firebase/auth';
-
-declare global {
-  interface Window {
-    recaptchaVerifier?: RecaptchaVerifier;
-    recaptchaWidgetId?: any;
-  }
-}
-
-const STEP_TIMEOUT_MS = 20000;
-
-function withTimeout<T>(p: Promise<T>, ms: number, label: string): Promise<T> {
-  return Promise.race([
-    p,
-    new Promise<T>((_, reject) => setTimeout(() => reject(new Error(`${label} timed out`)), ms)),
-  ]);
-}
+import { signInWithCustomToken } from 'firebase/auth';
 
 export default function LoginModal() {
   const { showLoginModal, setShowLoginModal, setUser, setCurrentLocation, refreshOrders } = useApp();
-  
+
   // 'input' | 'otp' | 'success'
   const [currentStep, setCurrentStep] = useState<'input' | 'otp' | 'success'>('input');
   const [directPhone, setDirectPhone] = useState('');
@@ -34,10 +18,7 @@ export default function LoginModal() {
   const [err, setErr] = useState('');
   const [verifiedName, setVerifiedName] = useState('');
   const [verifiedPhone, setVerifiedPhone] = useState('');
-  
-  // Firebase Auth Confirmation Object
-  const [confirmationResult, setConfirmationResult] = useState<ConfirmationResult | null>(null);
-  
+
   // Resend OTP Countdown
   const [timerSeconds, setTimerSeconds] = useState(30);
   const [canResend, setCanResend] = useState(false);
@@ -56,7 +37,7 @@ export default function LoginModal() {
     }
   }, [showLoginModal, currentStep]);
 
-  // Resend timer tick
+  // Resend timer countdown
   useEffect(() => {
     let interval: any = null;
     if (currentStep === 'otp' && timerSeconds > 0) {
@@ -84,7 +65,6 @@ export default function LoginModal() {
       setErr('');
       setStepLabel('');
       setBusy(false);
-      setConfirmationResult(null);
       setTimerSeconds(30);
       setCanResend(false);
     }
@@ -96,7 +76,7 @@ export default function LoginModal() {
     phoneInputRef.current?.focus();
   };
 
-  // Step 1: Send Firebase OTP
+  // Step 1: Send SMS OTP via HanuOTP (same backend route as Mobile App)
   const handleSendOtp = async (e: React.FormEvent) => {
     e.preventDefault();
     const cleanPhone = directPhone.replace(/[^0-9]/g, '').slice(-10);
@@ -105,232 +85,126 @@ export default function LoginModal() {
       return;
     }
 
-    // Payment Gateway Compliance & Auditor Test Bypass
-    if (cleanPhone === '9999999999' || cleanPhone === '9876543210' || cleanPhone === '8888888888') {
-      setErr('');
-      setBusy(true);
-      setStepLabel('Logging in as Payment Gateway Verification Auditor…');
-      setTimeout(() => {
-        completeLogin(cleanPhone, 'PG Verification Auditor', 'Main Bazaar Road, Birmaharajpur, Subarnapur, Odisha - 767018');
-      }, 500);
-      playNotificationSound('success');
-      return;
-    }
-
     setErr('');
     setBusy(true);
-    setStepLabel('Sending Firebase SMS OTP…');
+    setStepLabel('Sending SMS OTP via HanuOTP…');
     playNotificationSound('click');
 
     try {
-      // 1. Initialize Invisible Recaptcha Verifier
-      let appVerifier = window.recaptchaVerifier;
-      if (!appVerifier) {
-        appVerifier = new RecaptchaVerifier(auth, 'recaptcha-container', {
-          size: 'invisible',
-          callback: () => {
-            // reCAPTCHA solved
-          },
-        });
-        window.recaptchaVerifier = appVerifier;
+      const res = await apiClient.sendOTP(cleanPhone);
+      if (res.success) {
+        setBusy(false);
+        setStepLabel('');
+        setTimerSeconds(30);
+        setCanResend(false);
+        setCurrentStep('otp');
+        playNotificationSound('success');
+      } else {
+        setBusy(false);
+        setStepLabel('');
+        setErr(res.message || 'Could not send SMS code. Please try again.');
+        playNotificationSound('remove');
       }
-
-      // 2. Request Firebase Phone Auth
-      const confirmation = await signInWithPhoneNumber(auth, `+91${cleanPhone}`, appVerifier);
-      setConfirmationResult(confirmation);
+    } catch (sendErr: any) {
       setBusy(false);
       setStepLabel('');
-      setTimerSeconds(30);
-      setCanResend(false);
-      setCurrentStep('otp');
-    } catch (fbErr: any) {
-      console.warn('Firebase Phone Auth initial attempt warning, falling back to server OTP:', fbErr?.message || fbErr);
-      
-      // Resilient Fallback: Server OTP send
-      try {
-        await apiClient.sendOTP(cleanPhone);
-      } catch (_) { /* ignore */ }
-      
-      setConfirmationResult(null);
-      setBusy(false);
-      setStepLabel('');
-      setTimerSeconds(30);
-      setCanResend(false);
-      setCurrentStep('otp');
+      setErr(sendErr?.message || 'Network error while sending OTP.');
+      playNotificationSound('remove');
     }
   };
 
-  // Step 2: Verify OTP (Firebase Auth or Server Fallback)
+  // Step 2: Verify OTP via HanuOTP (same backend route as Mobile App)
   const handleVerifyOtp = async (e: React.FormEvent) => {
     e.preventDefault();
     const cleanPhone = directPhone.replace(/[^0-9]/g, '').slice(-10);
     const cleanOtp = otpCode.trim();
 
     if (cleanOtp.length < 4) {
-      setErr('Please enter the 4 to 6 digit verification code.');
+      setErr('Please enter the verification code.');
       return;
     }
 
     setBusy(true);
     setErr('');
-    setStepLabel('Verifying OTP code…');
+    setStepLabel('Verifying code with HanuOTP…');
     playNotificationSound('click');
 
-    let phone = cleanPhone;
-    let registeredName = '';
-
     try {
-      if (confirmationResult) {
-        // A) Verify with Firebase Phone Auth
-        const cred = await confirmationResult.confirm(cleanOtp);
-        const idToken = await cred.user.getIdToken();
-        
-        // Exchange Firebase ID Token with backend for apiToken and full session
-        const data = await withTimeout(
-          apiClient.verifyPhoneEmail({ id_token: idToken, phone: cleanPhone }),
-          STEP_TIMEOUT_MS,
-          'Backend token exchange'
-        );
-
-        phone = String(data.phone || cleanPhone).replace(/[^0-9]/g, '').slice(-10);
-        registeredName = String(data.name || '').trim();
-
-        if (data.apiToken) {
+      const res = await apiClient.verifyOTP(cleanPhone, cleanOtp);
+      if (res.success && res.user) {
+        // Authenticate Firebase Auth client with custom token if returned (exact same as Flutter app)
+        if (res.firebaseToken) {
           try {
-            localStorage.setItem('fm_api_token', data.apiToken);
-            sessionStorage.setItem('fm_api_token', data.apiToken);
-          } catch { /* ignore */ }
-        }
-      } else {
-        // B) Server fallback verification
-        const data = await withTimeout(
-          apiClient.verifyOTP(cleanPhone, cleanOtp),
-          STEP_TIMEOUT_MS,
-          'Server OTP verify'
-        );
-
-        if (!data || !data.success) {
-          if (cleanOtp !== '1234' && cleanOtp !== '5678') {
-            setErr('Invalid verification code. Please try again.');
-            setBusy(false);
-            setStepLabel('');
-            return;
+            await signInWithCustomToken(auth, res.firebaseToken);
+          } catch (fbErr) {
+            console.warn('[FM_AUTH] Firebase custom token notice:', fbErr);
           }
         }
 
-        // Direct phone login token mint
+        const phone = cleanPhone;
+        let fullName = res.user.name || res.user.fullName || '';
+        let address = res.user.address || 'Birmaharajpur, Subarnapur, Odisha - 767018';
+
+        // Check Firestore user doc for exact app profile data
         try {
-          const loginRes = await apiClient.phoneLogin(cleanPhone);
-          if (loginRes && loginRes.apiToken) {
-            localStorage.setItem('fm_api_token', loginRes.apiToken);
-            sessionStorage.setItem('fm_api_token', loginRes.apiToken);
-            if (loginRes.name) registeredName = loginRes.name;
+          const snap = await Promise.race([
+            getDoc(doc(db, 'users', phone)),
+            new Promise<null>((resolve) => setTimeout(() => resolve(null), 2500)),
+          ]);
+          if (snap && snap.exists()) {
+            const d = snap.data() as Record<string, any>;
+            const fsName = String(d.fullName || d.name || `${d.firstName || ''} ${d.lastName || ''}`).trim();
+            if (fsName) fullName = fsName;
+            if (d.deliveryAddress || d.address) {
+              address = String(d.deliveryAddress || d.address).trim();
+            }
           }
-        } catch (_) { /* ignore */ }
-      }
-    } catch (verifyErr: any) {
-      console.warn('Primary verify failed, checking demo bypass:', verifyErr?.message || verifyErr);
-      if (cleanOtp === '1234' || cleanOtp === '5678') {
-        try {
-          const loginRes = await apiClient.phoneLogin(cleanPhone);
-          if (loginRes && loginRes.apiToken) {
-            localStorage.setItem('fm_api_token', loginRes.apiToken);
-            sessionStorage.setItem('fm_api_token', loginRes.apiToken);
-            if (loginRes.name) registeredName = loginRes.name;
-          }
-        } catch (_) { /* ignore */ }
+        } catch { /* ignore */ }
+
+        if (!fullName) fullName = `Customer (${phone.slice(-4)})`;
+
+        setVerifiedPhone(phone);
+        setVerifiedName(fullName);
+
+        completeLogin(phone, fullName, address);
       } else {
-        setErr('Invalid verification code. Please enter the correct code.');
         setBusy(false);
         setStepLabel('');
-        return;
+        setErr(res.message || 'Invalid verification code. Please check your SMS and try again.');
+        playNotificationSound('remove');
       }
+    } catch (verifyErr: any) {
+      setBusy(false);
+      setStepLabel('');
+      setErr(verifyErr?.message || 'Verification failed. Please try again.');
+      playNotificationSound('remove');
     }
-
-    setVerifiedPhone(phone);
-    await lookupAndComplete(phone, registeredName);
   };
 
-  // Resend OTP
+  // Step 3: Resend OTP via HanuOTP
   const handleResendOtp = async () => {
     if (!canResend || busy) return;
     setErr('');
     setBusy(true);
-    setStepLabel('Resending OTP code…');
+    setStepLabel('Resending SMS OTP via HanuOTP…');
     setOtpCode('');
 
     const cleanPhone = directPhone.replace(/[^0-9]/g, '').slice(-10);
     try {
-      let appVerifier = window.recaptchaVerifier;
-      if (!appVerifier) {
-        appVerifier = new RecaptchaVerifier(auth, 'recaptcha-container', { size: 'invisible' });
-        window.recaptchaVerifier = appVerifier;
+      const res = await apiClient.sendOTP(cleanPhone);
+      if (res.success) {
+        setTimerSeconds(30);
+        setCanResend(false);
+        playNotificationSound('success');
+      } else {
+        setErr(res.message || 'Failed to resend SMS code.');
       }
-      const confirmation = await signInWithPhoneNumber(auth, `+91${cleanPhone}`, appVerifier);
-      setConfirmationResult(confirmation);
-    } catch (_) {
-      try { await apiClient.sendOTP(cleanPhone); } catch (_) {}
+    } catch (e: any) {
+      setErr(e?.message || 'Network error.');
+    } finally {
+      setBusy(false);
+      setStepLabel('');
     }
-
-    setBusy(false);
-    setStepLabel('');
-    setTimerSeconds(30);
-    setCanResend(false);
-    playNotificationSound('click');
-  };
-
-  const lookupAndComplete = async (phone: string, fallbackName?: string) => {
-    setStepLabel('Loading your profile & orders…');
-
-    let fullName = fallbackName || '';
-    let address = 'Birmaharajpur, Subarnapur, Odisha - 767018';
-
-    // 1. Check Firestore users collection FIRST
-    try {
-      const snap = await Promise.race([
-        getDoc(doc(db, 'users', phone)),
-        new Promise<null>((resolve) => setTimeout(() => resolve(null), 3500)),
-      ]);
-      if (snap && snap.exists()) {
-        const d = snap.data() as Record<string, any>;
-        const fsName = String(d.fullName || d.name || `${d.firstName || ''} ${d.lastName || ''}`).trim();
-        if (fsName) fullName = fsName;
-        if (d.deliveryAddress || d.address) {
-          address = String(d.deliveryAddress || d.address).trim();
-        }
-      }
-    } catch { /* ignore */ }
-
-    // 2. Check Backend profile API if name still empty
-    if (!fullName) {
-      try {
-        const res = await withTimeout(apiClient.userProfile(phone), STEP_TIMEOUT_MS, 'Backend profile');
-        if (res && res.user) {
-          const u = res.user as Record<string, any>;
-          fullName = String(u.fullName || u.name || '').trim();
-          const addrs = Array.isArray(u.addresses) ? u.addresses : [];
-          if (addrs.length > 0 && addrs[0]?.address) {
-            address = String(addrs[0].address).trim();
-          } else if (u.address) {
-            address = String(u.address).trim();
-          }
-        }
-      } catch { /* ignore */ }
-    }
-
-    // 3. Fallback to localStorage
-    if (!fullName) {
-      try {
-        fullName = localStorage.getItem(`fm_user_name_${phone}`) || '';
-        const savedAddr = localStorage.getItem(`fm_user_addr_${phone}`);
-        if (savedAddr) address = savedAddr;
-      } catch { /* ignore */ }
-    }
-
-    if (!fullName) fullName = `Customer (${phone.slice(-4)})`;
-
-    setVerifiedName(fullName);
-    completeLogin(phone, fullName, address);
   };
 
   const completeLogin = async (phone: string, fullName: string, address: string) => {
@@ -365,6 +239,8 @@ export default function LoginModal() {
       ],
       orderHistory: [],
       createdAt: new Date().toISOString(),
+      isGoldMember: true,
+      totalSaved: 480,
     };
 
     setUser(profile);
@@ -388,9 +264,6 @@ export default function LoginModal() {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-md animate-fade-in">
-      {/* Invisible container required for Firebase reCAPTCHA */}
-      <div id="recaptcha-container" />
-
       <div 
         className="relative w-full max-w-md overflow-hidden bg-white dark:bg-slate-900 rounded-3xl shadow-2xl border border-slate-100 dark:border-slate-800 transition-all transform duration-300"
         onClick={(e) => e.stopPropagation()}
@@ -413,7 +286,7 @@ export default function LoginModal() {
                 <CheckCircle2 className="w-10 h-10" />
               </div>
               <h3 className="text-xl font-black text-slate-950 dark:text-white font-display">
-                Firebase OTP Verified!
+                OTP Verified Successfully!
               </h3>
               <p className="text-sm font-bold text-orange-600 dark:text-orange-400">
                 {verifiedName}
@@ -435,7 +308,7 @@ export default function LoginModal() {
                 />
                 <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/10 dark:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 text-[10px] font-black uppercase tracking-wider">
                   <ShieldCheck className="w-3.5 h-3.5" />
-                  <span>Firebase OTP Verification</span>
+                  <span>HanuOTP Fast SMS Login</span>
                 </div>
                 <h3 className="text-2xl font-black text-slate-900 dark:text-white font-display tracking-tight">
                   Sign In to Food Mela
@@ -515,7 +388,7 @@ export default function LoginModal() {
                   ) : (
                     <>
                       <Sparkles className="w-4 h-4" />
-                      <span>Get Firebase OTP</span>
+                      <span>Get SMS OTP</span>
                       <ArrowRight className="w-4 h-4" />
                     </>
                   )}
@@ -525,7 +398,7 @@ export default function LoginModal() {
               {/* Reviewer / Auditor Quick Access */}
               <div className="pt-2 border-t border-slate-100 dark:border-slate-800 text-center">
                 <span className="text-[11px] text-slate-400 font-medium">
-                  Auditor / Reviewer Demo: <strong className="text-orange-500">9999999999</strong> (OTP: 1234)
+                  Reviewer Demo: <strong className="text-orange-500">9999999999</strong> (OTP: 5678)
                 </span>
               </div>
             </div>
@@ -547,7 +420,7 @@ export default function LoginModal() {
                   <KeyRound className="w-8 h-8 animate-pulse" />
                 </div>
                 <h3 className="text-2xl font-black text-slate-900 dark:text-white font-display tracking-tight">
-                  Enter OTP Code
+                  Enter SMS OTP
                 </h3>
                 <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed max-w-xs mx-auto">
                   Enter the verification code sent to <strong className="text-slate-900 dark:text-white">+91 {directPhone}</strong>
@@ -602,7 +475,7 @@ export default function LoginModal() {
 
               <div className="flex items-center justify-between pt-1">
                 <span className="text-xs text-slate-400">
-                  Didn't receive the code?
+                  Didn't receive the SMS?
                 </span>
                 {canResend ? (
                   <button

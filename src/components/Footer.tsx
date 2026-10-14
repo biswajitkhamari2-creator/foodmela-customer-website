@@ -151,33 +151,20 @@ export default function Footer() {
 
         </div>
 
-        {/* Discreet Legal Entity & Regulatory Notes */}
-        <div className="mt-6 pt-4 border-t border-slate-100 dark:border-slate-800">
-          <details className="text-[11px] text-slate-400 group cursor-pointer text-center sm:text-left">
-            <summary className="hover:text-slate-600 dark:hover:text-slate-300 font-medium select-none list-none inline-flex items-center gap-1.5 transition-colors">
-              <span>📋 Legal Entity &amp; Regulatory Notes</span>
-              <span className="text-[10px] text-slate-400 group-open:rotate-180 transition-transform">▼</span>
-            </summary>
-            <div className="mt-2.5 p-3 rounded-xl bg-slate-50 dark:bg-slate-850/80 border border-slate-200/60 dark:border-slate-800 text-slate-500 dark:text-slate-400 space-y-1">
-              <p>
-                <strong className="text-slate-700 dark:text-slate-300">Legal Business Name:</strong> SIDHESWAR ENTERPRISES · <strong className="text-slate-700 dark:text-slate-300">MSME Udyam:</strong> UDYAM-OD-29-0025578 · <strong className="text-slate-700 dark:text-slate-300">Trade Name:</strong> FoodMela
-              </p>
-              <p>
-                Operational Base: Birmaharajpur, Subarnapur, Odisha – 767018 | Helpline: +91 8144503650 | Email: support@foodmela.online
-              </p>
-            </div>
-          </details>
-        </div>
 
         {/* Bottom copyright line */}
-        <div className="mt-4 pt-4 border-t border-slate-200/60 dark:border-slate-800 flex flex-col sm:flex-row items-center justify-between gap-4 text-[11px] text-slate-400 text-center sm:text-left">
-          <p>© 2026 FoodMela (Operated by SIDHESWAR ENTERPRISES) · foodmela.online. All Rights Reserved.</p>
+        <div className="mt-4 pt-4 border-t border-slate-200/60 dark:border-slate-800 flex flex-col sm:flex-row items-center justify-between gap-4 text-[11px] text-slate-500 dark:text-slate-400 text-center sm:text-left">
+          <p>© 2026 FoodMela (Operated by SIDHESWAR ENTERPRISES · Proprietor: Biswajit Khamari) · foodmela.online. All Rights Reserved.</p>
           <div className="flex items-center gap-4">
-            <a href="/terms.html" target="_blank" rel="noreferrer" className="hover:underline">Terms</a>
+            <a href="/terms.html" target="_blank" rel="noreferrer" className="hover:text-emerald-600 dark:hover:text-emerald-400 hover:underline">Terms</a>
             <span>·</span>
-            <a href="/privacy.html" target="_blank" rel="noreferrer" className="hover:underline">Privacy</a>
+            <a href="/privacy.html" target="_blank" rel="noreferrer" className="hover:text-emerald-600 dark:hover:text-emerald-400 hover:underline">Privacy</a>
             <span>·</span>
-            <a href="/contact.html" target="_blank" rel="noreferrer" className="hover:underline">Contact &amp; Grievance</a>
+            <a href="/contact.html" target="_blank" rel="noreferrer" className="hover:text-emerald-600 dark:hover:text-emerald-400 hover:underline">Contact &amp; Grievance</a>
+            <span>·</span>
+            <a href="/refund.html" target="_blank" rel="noreferrer" className="hover:text-emerald-600 dark:hover:text-emerald-400 hover:underline">Refund Policy</a>
+            <span>·</span>
+            <a href="/shipping.html" target="_blank" rel="noreferrer" className="hover:text-emerald-600 dark:hover:text-emerald-400 hover:underline">Shipping Policy</a>
           </div>
         </div>
       </div>

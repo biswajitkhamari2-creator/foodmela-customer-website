@@ -412,6 +412,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   }
 
+  const isGold = Boolean(user?.isGoldMember);
   const goldSavings = isGold ? Math.round(cartTotal * 0.10) : 0;
   const grandTotal = Math.max(0, cartTotal + deliveryFee + smallOrderFee + taxes + platformFee - discountAmount - goldSavings);
 
@@ -547,10 +548,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       return false;
     }
 
-    // Hard block: All website orders are capped at ₹100 max.
-    if (grandTotal > 100) {
+    // Cash on Delivery is capped at ₹100 max; online payment via PayU is enabled for all amounts.
+    if (paymentMethod === 'COD' && grandTotal > 100) {
       playNotificationSound('remove');
-      alert(`Website checkout is disabled for orders over ₹100. Your order total is ₹${grandTotal}. Please place orders above ₹100 using the Food Mela Mobile App!`);
+      alert(`Cash on Delivery is limited to orders up to ₹100. Your order total is ₹${grandTotal}. Please select UPI or Card to pay securely online.`);
       return false;
     }
 

@@ -21,7 +21,7 @@ body {
   padding: 0;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji', 'Android Emoji', sans-serif;
   background:
     radial-gradient(1200px 500px at 10% -5%, rgba(249, 115, 22, 0.07), transparent 60%),
     radial-gradient(1000px 480px at 95% 0%, rgba(16, 185, 129, 0.06), transparent 60%),
@@ -36,7 +36,7 @@ body {
 }
 
 .font-display {
-  font-family: 'Poppins', 'Inter', system-ui, sans-serif;
+  font-family: 'Poppins', 'Inter', system-ui, -apple-system, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji', sans-serif;
 }
 
 .font-mono-numbers {
@@ -170,8 +170,24 @@ body {
   transform: scale(0.98);
 }
 
+/* Animated Emoji & Unicode Glyphs Font Preservation */
+.emoji, [data-emoji], .font-emoji {
+  font-family: 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji', 'Android Emoji', sans-serif !important;
+  font-style: normal !important;
+  font-variant: normal !important;
+  text-rendering: auto;
+  display: inline-block;
+}
+
 @media (prefers-reduced-motion: reduce) {
-  .ecg-dash, .sheen, .float-slow, .float-slower, .usp-flash {
-    animation: none;
+  .ecg-dash, .sheen, .float-slow, .float-slower, .usp-flash, .animate-bounce, .animate-pulse, .animate-spin {
+    animation: none !important;
+    transition: none !important;
+  }
+  .rise-in {
+    opacity: 1 !important;
+    transform: none !important;
+    animation: none !important;
   }
 }
+
