@@ -138,9 +138,9 @@ export default function Footer() {
               Service Location
             </h4>
             <div className="p-3.5 rounded-2xl bg-slate-100/70 dark:bg-slate-800/50 border border-slate-200/60 dark:border-slate-700/60 text-xs space-y-1.5">
-              <p className="font-bold text-slate-900 dark:text-white">📍 Birmaharajpur Operational Hub</p>
+              <p className="font-bold text-slate-900 dark:text-white">📍 RAMESWARPADA, Birmaharajpur</p>
               <p className="text-slate-500 dark:text-slate-400 leading-relaxed text-[11px]">
-                Subarnapur, Odisha - 767018.<br />
+                Tithipali, Sonepur, Odisha 767018.<br />
                 Delivery Hours: 7:00 AM – 10:30 PM.
               </p>
               <div className="pt-2 border-t border-slate-200 dark:border-slate-700 text-[11px] text-slate-500">
@@ -154,7 +154,7 @@ export default function Footer() {
 
         {/* Bottom copyright line */}
         <div className="mt-4 pt-4 border-t border-slate-200/60 dark:border-slate-800 flex flex-col sm:flex-row items-center justify-between gap-4 text-[11px] text-slate-500 dark:text-slate-400 text-center sm:text-left">
-          <p>© 2026 FoodMela (Operated by SIDHESWAR ENTERPRISES · Proprietor: Biswajit Khamari) · foodmela.online. All Rights Reserved.</p>
+          <p>© 2026 FoodMela (Operated by Biswajit Khamari · Proprietor: Biswajit Khamari) · foodmela.online. All Rights Reserved.</p>
           <div className="flex items-center gap-4">
             <a href="/terms.html" target="_blank" rel="noreferrer" className="hover:text-emerald-600 dark:hover:text-emerald-400 hover:underline">Terms</a>
             <span>·</span>

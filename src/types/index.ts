@@ -21,6 +21,7 @@ export interface CatalogItem {
   isVeg: boolean;
   isBestseller?: boolean;
   description: string;
+  image?: string;                 // Firebase Storage URL (from admin upload)
   imageFallbackGradient: string; // CSS gradient fallback
   type: 'food' | 'grocery';
   customizationOptions?: CustomizationOption[];

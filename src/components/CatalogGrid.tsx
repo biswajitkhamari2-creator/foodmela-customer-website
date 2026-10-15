@@ -1,9 +1,13 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useApp, playNotificationSound } from '../context/AppContext';
 import { CatalogItem } from '../types';
 import { Star, Clock, ShoppingCart, ToggleLeft, ToggleRight, Sparkles, ChefHat, Carrot, AlertCircle } from 'lucide-react';
 
 export default function CatalogGrid() {
+  // Track image IDs that failed to load so we can show emoji fallback
+  const [imgErrors, setImgErrors] = useState<Set<string>>(new Set());
+  const handleImgError = (id: string) =>
+    setImgErrors((prev) => new Set(prev).add(id));
   const {
     catalog,
     loadingCatalog,
@@ -228,17 +232,31 @@ export default function CatalogGrid() {
                 key={item.id}
                 className="card-glow rise-in group relative bg-white/90 dark:bg-slate-900/90 backdrop-blur rounded-3xl overflow-hidden border border-slate-100 dark:border-slate-800 hover:border-orange-400/40 dark:hover:border-orange-500/30 shadow-sm flex flex-col"
               >
-                {/* Image Block with Custom Gradients Fallback */}
+                {/* Image Block — shows Firebase Storage photo when available, gradient+emoji fallback otherwise */}
                 <div className="relative h-44 w-full overflow-hidden shrink-0">
-                  <div className={`absolute inset-0 bg-gradient-to-br ${item.imageFallbackGradient} opacity-90`} />
-                  
+                  {/* Gradient — full opacity when no image, subtle overlay when image present */}
+                  <div className={`absolute inset-0 bg-gradient-to-br ${item.imageFallbackGradient} transition-opacity duration-300 ${
+                    item.image && !imgErrors.has(item.id) ? 'opacity-30' : 'opacity-90'
+                  }`} />
+
                   {/* Subtle Grid overlay for luxury pattern */}
                   <div className="absolute inset-0 bg-[linear-gradient(to_right,rgba(255,255,255,0.06)_1px,transparent_1px),linear-gradient(to_bottom,rgba(255,255,255,0.06)_1px,transparent_1px)] bg-[size:14px_24px]" />
-                  
-                  {/* Centralized High Contrast Emoji / Icon Graphic */}
-                  <div className="absolute inset-0 flex items-center justify-center text-6xl transform group-hover:scale-110 transition-transform duration-500 pointer-events-none select-none">
-                    {getCuisineIcon(item.category)}
-                  </div>
+
+                  {/* Firebase image — renders when URL present and not broken */}
+                  {item.image && !imgErrors.has(item.id) ? (
+                    <img
+                      src={item.image}
+                      alt={item.name}
+                      loading="lazy"
+                      className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                      onError={() => handleImgError(item.id)}
+                    />
+                  ) : (
+                    /* Emoji fallback when no image or image failed */
+                    <div className="absolute inset-0 flex items-center justify-center text-6xl transform group-hover:scale-110 transition-transform duration-500 pointer-events-none select-none">
+                      {getCuisineIcon(item.category)}
+                    </div>
+                  )}
 
                   {/* Corner Badges */}
                   <div className="absolute top-3 left-3 flex flex-col gap-1.5">

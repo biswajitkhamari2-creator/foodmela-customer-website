@@ -2,7 +2,7 @@ import React, { createContext, useContext, useState, useEffect, useCallback } fr
 import { CatalogItem, CartItem, Coupon, Order, UserProfile, SelectedCustomization } from '../types';
 import { apiClient, submitPayUForm, MOCK_CATALOG, MOCK_COUPONS } from '../api/apiClient';
 import { db } from '../firebase';
-import { doc, onSnapshot, collection, query, where, setDoc, serverTimestamp } from 'firebase/firestore';
+import { doc, onSnapshot, collection, query, where, setDoc, serverTimestamp, getDocs } from 'firebase/firestore';
 
 // Premium Audio Synthesis for App Sound Effects
 export const playNotificationSound = (type: 'success' | 'click' | 'remove') => {
@@ -206,19 +206,99 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const cities = ['Birmaharajpur', 'Subarnapur', 'Bhubaneswar', 'Cuttack', 'Sambalpur', 'Rourkela', 'Balangir'];
 
-  // Initialize Catalog
+  // ── REAL-TIME CATALOG SYNC (admin image/price changes reflect instantly) ──
   useEffect(() => {
-    const loadCatalog = async () => {
-      setLoadingCatalog(true);
-      const items = await apiClient.getCatalog();
-      const validItems = items.filter((item) => item.price && item.price > 0);
-      setCatalog(validItems);
-      const uniqueCategories = Array.from(new Set(validItems.map((i) => i.category || 'Vegetables')));
+    setLoadingCatalog(true);
+
+    // Shared state refs for merging two live snapshots
+    let liveCustoms: CatalogItem[] = [];
+    let livePriceOverrides = new Map<string, { price?: number; mrp?: number; image?: string }>();
+
+    const CATEGORY_LABELS: Record<string, string> = {
+      cooked_food: 'Cooked Food', non_veg: 'Non-Veg',
+      fast_food: 'Fast Food', beverages: 'Drinks & Beverages',
+      sweets: 'Sweets', snacks: 'Snacks',
+      vegetables: 'Vegetables', vegetable: 'Vegetables',
+      fruits: 'Fruits', grocery: 'Grocery & Staples',
+      dals_pulses: 'Dals & Pulses', grain: 'Dals & Pulses',
+      chaat: 'Chaat & Street Food', dairy: 'Dairy',
+      eggs_meat: 'Eggs & Meat', breakfast: 'Breakfast',
+      momos: 'Momos & Dimsum', fashion: 'Fashion & Dress',
+      furniture: 'Furniture',
+    };
+
+    const mergeCatalog = () => {
+      // Apply price/image overrides to base MOCK_CATALOG
+      const baseCatalog = MOCK_CATALOG.map((item) => {
+        const override = livePriceOverrides.get(item.id);
+        if (!override) return item;
+        return {
+          ...item,
+          price: override.price ?? item.price,
+          originalPrice: override.mrp ?? item.originalPrice,
+          image: (override.image && override.image.trim()) ? override.image.trim() : item.image,
+        };
+      }).filter((item) => item.price > 0);
+
+      const merged = [...liveCustoms, ...baseCatalog].filter((item) => item.price > 0);
+      setCatalog(merged);
+      const uniqueCategories = Array.from(new Set(merged.map((i) => i.category || 'Vegetables')));
       setCategories(['All', ...uniqueCategories]);
       setLoadingCatalog(false);
     };
-    loadCatalog();
+
+    // Listener 1: custom_products (admin-added items)
+    const unsubCustoms = onSnapshot(
+      collection(db, 'custom_products'),
+      (snap) => {
+        liveCustoms = snap.docs
+          .filter((d) => d.data().isActive !== false && Number(d.data().price) > 0)
+          .map((d) => {
+            const data = d.data();
+            const price = Number(data.price);
+            const mrp = data.mrp != null && Number(data.mrp) > price ? Number(data.mrp) : undefined;
+            const rawCat = String(data.category || 'Grocery').trim();
+            const categoryLabel = CATEGORY_LABELS[rawCat.toLowerCase()] ?? rawCat;
+            return {
+              id: d.id,
+              name: data.name || d.id,
+              category: categoryLabel,
+              categoryLabel: categoryLabel,
+              price,
+              originalPrice: mrp,
+              rating: Number(data.rating) || 4.8,
+              ratingCount: 150,
+              prepTime: '15 min',
+              isVeg: data.isVeg !== false,
+              isBestseller: !!data.isPopular,
+              description: data.dealText || data.freshnessTag || 'Fresh item delivered direct by Food Mela',
+              imageFallbackGradient: 'from-amber-600 to-orange-500',
+              image: (data.image && String(data.image).trim()) ? String(data.image).trim() : undefined,
+              type: 'grocery' as const,
+              unit: data.unit || '1 kg',
+              restaurant: 'Food Mela Direct',
+            };
+          });
+        mergeCatalog();
+      },
+      () => { setLoadingCatalog(false); }
+    );
+
+    // Listener 2: product_prices (price/image overrides for bundled catalog)
+    const unsubPrices = onSnapshot(
+      collection(db, 'product_prices'),
+      (snap) => {
+        livePriceOverrides = new Map(
+          snap.docs.map((d) => [d.id, d.data() as { price?: number; mrp?: number; image?: string }])
+        );
+        mergeCatalog();
+      },
+      () => {} // silent fail — base catalog still works
+    );
+
+    return () => { unsubCustoms(); unsubPrices(); };
   }, []);
+
 
   // Sync Dark Mode
   useEffect(() => {

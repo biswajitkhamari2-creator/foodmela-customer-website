@@ -107,7 +107,7 @@ export default function PolicyModal() {
                 Official Helpline & Support Desk
               </span>
               <p className="text-xs font-bold text-slate-900 dark:text-white">
-                Birmaharajpur, Subarnapur, Odisha - 767018
+                RAMESWARPADA, Birmaharajpur, Tithipali, Sonepur, Odisha 767018
               </p>
               <p className="text-[11px] text-slate-500">
                 Operating 9:00 AM – 10:00 PM, All 7 Days
@@ -126,7 +126,7 @@ export default function PolicyModal() {
 
         {/* Modal Bottom Footer */}
         <div className="p-4 bg-slate-50 dark:bg-slate-850 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between text-[11px] text-slate-400 shrink-0">
-          <span>© 2026 FoodMela (Operated by SIDHESWAR ENTERPRISES) · foodmela.online</span>
+          <span>© 2026 FoodMela (Operated by Biswajit Khamari) · foodmela.online</span>
           <button
             onClick={() => {
               playNotificationSound('remove');
