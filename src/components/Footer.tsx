@@ -63,8 +63,8 @@ export default function Footer() {
             <div className="flex items-center gap-2 text-xs font-semibold text-slate-700 dark:text-slate-300">
               <Phone className="w-3.5 h-3.5 text-orange-500" />
               <span>Helpline: </span>
-              <a href="tel:8144503650" className="text-orange-600 dark:text-orange-400 font-bold hover:underline">
-                +91 8144503650
+              <a href="tel:[Helpline Number]" className="text-orange-600 dark:text-orange-400 font-bold hover:underline">
+                [Helpline Number]
               </a>
             </div>
           </div>
@@ -138,13 +138,11 @@ export default function Footer() {
               Service Location
             </h4>
             <div className="p-3.5 rounded-2xl bg-slate-100/70 dark:bg-slate-800/50 border border-slate-200/60 dark:border-slate-700/60 text-xs space-y-1.5">
-              <p className="font-bold text-slate-900 dark:text-white">📍 RAMESWARPADA, Birmaharajpur</p>
+              <p className="font-bold text-slate-900 dark:text-white">📍 Service Area</p>
               <p className="text-slate-500 dark:text-slate-400 leading-relaxed text-[11px]">
-                Tithipali, Sonepur, Odisha 767018.<br />
-                Delivery Hours: 7:00 AM – 10:30 PM.
-              </p>
+                [Service Area]</p>
               <div className="pt-2 border-t border-slate-200 dark:border-slate-700 text-[11px] text-slate-500">
-                Direct Helpline: <a href="tel:8144503650" className="text-orange-600 dark:text-orange-400 font-bold">+91 8144503650</a>
+                Helpline: <a href="tel:[Helpline Number]" className="text-orange-600 dark:text-orange-400 font-bold">[Helpline Number]</a>
               </div>
             </div>
           </div>
@@ -154,7 +152,7 @@ export default function Footer() {
 
         {/* Bottom copyright line */}
         <div className="mt-4 pt-4 border-t border-slate-200/60 dark:border-slate-800 flex flex-col sm:flex-row items-center justify-between gap-4 text-[11px] text-slate-500 dark:text-slate-400 text-center sm:text-left">
-          <p>© 2026 FoodMela (Operated by Biswajit Khamari · Proprietor: Biswajit Khamari) · foodmela.online. All Rights Reserved.</p>
+          <p>© 2026 FoodMela. All Rights Reserved.</p>
           <div className="flex items-center gap-4">
             <a href="/terms.html" target="_blank" rel="noreferrer" className="hover:text-emerald-600 dark:hover:text-emerald-400 hover:underline">Terms</a>
             <span>·</span>

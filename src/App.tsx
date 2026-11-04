@@ -21,30 +21,10 @@ import Footer from './components/Footer';
 import { Compass, Search, ShoppingBag, User, Home, Sparkles, Lock, ArrowRight, ShieldCheck, Phone, Smartphone, Mail } from 'lucide-react';
 import { doc, onSnapshot } from 'firebase/firestore';
 import { db } from './firebase';
-
-const OWNER_PHONE = '9660887725';
-
-function isOwnerUser(): boolean {
-  try {
-    if (typeof window === 'undefined') return false;
-    const params = new URLSearchParams(window.location.search);
-    if (params.get('preview') === '1' || params.get('bypass') === '1') return true;
-    const qPhone = params.get('phone') || params.get('owner');
-    if (qPhone && qPhone.replace(/[^0-9]/g, '').endsWith(OWNER_PHONE)) return true;
-    const saved = localStorage.getItem('foodmela_user');
-    if (saved) {
-      const u = JSON.parse(saved);
-      const p = String(u?.phone || '').replace(/[^0-9]/g, '');
-      if (p.endsWith(OWNER_PHONE)) return true;
-    }
-    const bypassKey = localStorage.getItem('fm_owner_bypass');
-    if (bypassKey === 'true') return true;
-  } catch { /* ignore */ }
-  return false;
-}
+import { apiClient } from './api/apiClient';
 
 function MaintenanceGate({ children }: { children: React.ReactNode }) {
-  // FoodMela e-commerce platform is live 24/7 on foodmela.online — fully operational
+  // Platform is live and operational
   return <>{children}</>;
 }
 
@@ -68,10 +48,17 @@ function AppContent() {
       }
 
       if (params.get('paid') === '1' || path.includes('/track/')) {
+        const paidOrderId = params.get('paid') === '1' ? (params.get('orderId') || '') : '';
         clearCart();
         setActiveTab('orders');
-        refreshOrders();
         window.history.replaceState({}, '', '/');
+        // Confirm the gateway payment before reading orders: if the webhook is
+        // missed, this call is what actually creates the paid order.
+        if (paidOrderId) {
+          void apiClient.confirmCashfreePayment(paidOrderId).then(() => refreshOrders());
+        } else {
+          refreshOrders();
+        }
       } else if (params.get('payment_error')) {
         const err = params.get('payment_error');
         setPaymentNotice(`Online payment notice: ${decodeURIComponent(err || 'Payment was not completed')}. You can re-try or select Cash on Delivery.`);

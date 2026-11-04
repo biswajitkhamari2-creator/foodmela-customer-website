@@ -1,6 +1,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { useApp, playNotificationSound } from '../context/AppContext';
 import { X, Trash2, Tag, Percent, MapPin, CreditCard, ChevronRight, CheckCircle, Gift, Loader2, Phone, Edit3 } from 'lucide-react';
+import DeliveryLocationPicker from './DeliveryLocationPicker';
 
 export default function CartDrawer() {
   const {
@@ -53,7 +54,7 @@ export default function CartDrawer() {
       return list.map((a: any, idx: number) => ({
         id: a.id || `addr_${idx + 1}`,
         label: a.label || a.tag || 'Home',
-        addressLine: a.addressLine || a.address || user.address || currentLocation || 'Birmaharajpur, Subarnapur, Odisha - 767018',
+        addressLine: a.addressLine || a.address || user.address || currentLocation || '[Default Address]',
         city: a.city || 'Birmaharajpur',
       }));
     }
@@ -61,7 +62,7 @@ export default function CartDrawer() {
       {
         id: 'addr_1',
         label: 'Home',
-        addressLine: user.address || currentLocation || 'Birmaharajpur, Subarnapur, Odisha - 767018',
+        addressLine: user.address || currentLocation || '[Default Address]',
         city: 'Birmaharajpur',
       },
     ];
@@ -89,37 +90,17 @@ export default function CartDrawer() {
     if (found && found.addressLine) {
       return `${found.addressLine}, ${found.city}`;
     }
-    return user?.address || currentLocation || 'Birmaharajpur, Subarnapur, Odisha - 767018';
+    return user?.address || currentLocation || '[Default Address]';
   };
 
   const handleCheckoutSubmit = async () => {
-    if (!user) {
-      playNotificationSound('click');
-      setShowLoginModal(true);
-      return;
-    }
-
-    // Cash on Delivery is restricted to orders up to ₹100
-    if (paymentMethod === 'COD' && !isCodAllowed) {
-      playNotificationSound('remove');
-      alert(`Cash on Delivery is limited to orders up to ₹100. Your grand total is ₹${grandTotal}. Please choose UPI or Card to pay securely online.`);
-      return;
-    }
-
-    setIsPlacing(true);
-    const finalAddr = getEffectiveAddress();
-    
-    try {
-      const ok = await placeOrder(paymentMethod, finalAddr);
-      if (ok) {
-        setCheckoutStep('cart');
-        setCartDrawerOpen(false);
-      }
-    } catch (e) {
-      console.error('Checkout error:', e);
-    } finally {
-      setIsPlacing(false);
-    }
+    // Redirect to app - web ordering disabled
+    playNotificationSound('click');
+    setCartDrawerOpen(false);
+    // Redirect to Play Store - use actual package name
+    const packageName = 'com.foodmela.in';
+    // Fallback to Play Store URL (market:// may not work on all browsers)
+    window.location.href = `https://play.google.com/store/apps/details?id=${packageName}`;
   };
 
   const getCustomizationsText = (ci: any) => {
@@ -364,6 +345,11 @@ export default function CartDrawer() {
                   </button>
                 </div>
 
+                {/* Coordinates are what the delivery charge is computed from,
+                    so this sits above the saved-address list and works before
+                    the customer signs in. */}
+                <DeliveryLocationPicker />
+
                 {!user ? (
                   <div className="p-4 bg-orange-50/40 dark:bg-orange-950/20 border border-orange-500/30 rounded-2xl space-y-3 text-center">
                     <div className="space-y-1">
@@ -438,8 +424,8 @@ export default function CartDrawer() {
 
                 <div className="grid grid-cols-1 gap-2">
                   {[
-                    { id: 'UPI', title: 'Instant UPI (GPay / PhonePe / Paytm)', subtitle: 'Fast & Secure · PayU Online Gateway', disabled: false },
-                    { id: 'CARD', title: 'Credit / Debit Card', subtitle: 'Visa, Mastercard, RuPay · PayU 256-bit SSL', disabled: false },
+                    { id: 'UPI', title: 'Instant UPI (GPay / PhonePe / Paytm)', subtitle: 'Fast & Secure · Cashfree Online Gateway', disabled: false },
+                    { id: 'CARD', title: 'Credit / Debit Card', subtitle: 'Visa, Mastercard, RuPay · Cashfree 256-bit SSL', disabled: false },
                     { id: 'COD', title: 'Cash on Delivery (COD)', subtitle: isCodAllowed ? 'Pay when food arrives · up to ₹100' : 'Prepaid required for orders above ₹100', disabled: !isCodAllowed },
                   ].map((pay: { id: string; title: string; subtitle: string; disabled?: boolean }) => {
                     const isSelected = paymentMethod === pay.id;
@@ -564,7 +550,7 @@ export default function CartDrawer() {
                   {isPlacing ? (
                     <>
                       <Loader2 className="w-4 h-4 animate-spin shrink-0" />
-                      <span>{paymentMethod === 'COD' ? 'Confirming Order...' : 'Redirecting to PayU Server...'}</span>
+                      <span>{paymentMethod === 'COD' ? 'Confirming Order...' : 'Redirecting to Cashfree...'}</span>
                     </>
                   ) : !user ? (
                     <>
@@ -579,7 +565,7 @@ export default function CartDrawer() {
                   ) : (
                     <>
                       <CreditCard className="w-4 h-4 shrink-0" />
-                      <span>Pay Online via PayU · ₹{grandTotal}</span>
+                      <span>Pay Online via Cashfree · ₹{grandTotal}</span>
                     </>
                   )}
                 </button>

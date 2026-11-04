@@ -78,7 +78,7 @@ export default function LiveTracker() {
 
   const triggerCallRider = (phone?: string, name?: string) => {
     playNotificationSound('success');
-    window.location.href = `tel:${phone || '8144503650'}`;
+    window.location.href = `tel:${phone || '[Helpline Number]'}`;
   };
 
   return (
@@ -458,7 +458,7 @@ export default function LiveTracker() {
                     </p>
 
                     <div className="p-3 bg-rose-50/50 dark:bg-rose-950/20 rounded-xl text-[11px] text-rose-700 dark:text-rose-300 font-medium">
-                      Status Note: Order was cancelled. If prepaid online via PayU, refund has been processed back to your original payment method.
+                      Status Note: Order was cancelled. If prepaid online via Cashfree, refund has been processed back to your original payment method.
                     </div>
 
                     <div className="border-t border-slate-100 dark:border-slate-800 pt-2.5 space-y-1">

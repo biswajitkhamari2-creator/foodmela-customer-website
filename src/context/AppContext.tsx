@@ -1,6 +1,13 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { CatalogItem, CartItem, Coupon, Order, UserProfile, SelectedCustomization } from '../types';
-import { apiClient, submitPayUForm, MOCK_CATALOG, MOCK_COUPONS } from '../api/apiClient';
+import { apiClient, submitPayUForm, launchCashfreeCheckout, MOCK_CATALOG, MOCK_COUPONS, fetchDeliveryQuote, DeliveryQuoteResult } from '../api/apiClient';
+
+/** The delivery location the customer picked, with real coordinates. */
+export interface DeliveryCoords {
+  lat: number;
+  lng: number;
+  label: string;
+}
 import { db } from '../firebase';
 import { doc, onSnapshot, collection, query, where, setDoc, serverTimestamp, getDocs } from 'firebase/firestore';
 
@@ -105,6 +112,15 @@ interface AppContextType {
   setCurrentLocation: (loc: string) => void;
   cities: string[];
 
+  // Delivery location + server-priced fee
+  deliveryCoords: DeliveryCoords | null;
+  setDeliveryCoords: (c: DeliveryCoords | null) => void;
+  deliveryQuote: DeliveryQuoteResult | null;
+  deliveryQuoteLoading: boolean;
+  deliveryKm: number | null;
+  deliveryOutOfZone: boolean;
+  canDeliverHere: boolean;
+
   // Auth State
   user: UserProfile | null;
   setUser: (u: UserProfile | null) => void;
@@ -176,8 +192,38 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   });
 
   const [currentLocation, setCurrentLocation] = useState<string>(() => {
-    return localStorage.getItem('foodmela_location') || 'Birmaharajpur, Subarnapur, Odisha - 767018';
+    return localStorage.getItem('foodmela_location') || '[Default Address]';
   });
+
+  // The delivery location the customer picked from search results, with real
+  // coordinates. A typed address string has no coordinates and therefore no
+  // price — this is what makes distance-based charging possible on the web.
+  const [deliveryCoords, setDeliveryCoordsState] = useState<DeliveryCoords | null>(() => {
+    try {
+      const raw = localStorage.getItem('foodmela_delivery_coords');
+      if (!raw) return null;
+      const parsed = JSON.parse(raw);
+      return Number.isFinite(parsed?.lat) && Number.isFinite(parsed?.lng) ? parsed : null;
+    } catch {
+      return null;
+    }
+  });
+
+  const [deliveryQuote, setDeliveryQuote] = useState<DeliveryQuoteResult | null>(null);
+  const [deliveryQuoteLoading, setDeliveryQuoteLoading] = useState(false);
+
+  const setDeliveryCoords = (coords: DeliveryCoords | null) => {
+    setDeliveryCoordsState(coords);
+    try {
+      if (coords) {
+        localStorage.setItem('foodmela_delivery_coords', JSON.stringify(coords));
+      } else {
+        localStorage.removeItem('foodmela_delivery_coords');
+      }
+    } catch {
+      /* private mode — coordinates simply do not survive a reload */
+    }
+  };
 
   const [selectedPolicy, setSelectedPolicy] = useState<string | null>(null);
   const [appliedCoupon, setAppliedCoupon] = useState<Coupon | null>(null);
@@ -225,6 +271,20 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       eggs_meat: 'Eggs & Meat', breakfast: 'Breakfast',
       momos: 'Momos & Dimsum', fashion: 'Fashion & Dress',
       furniture: 'Furniture',
+    };
+
+    // SYNC RULE: sanitize garbage units from Firestore (e.g. "inch" on sprouts).
+    // Allowed: weight (g/kg), volume (ml/l), count (pc/pcs/plate/bowl/pack/dozen/bunch/packet).
+    const sanitizeUnit = (raw: unknown, category: string): string => {
+      const u = String(raw ?? '').trim().toLowerCase();
+      if (!u) return '1 kg';
+      if (/(\d+\s*(g|kg|ml|l|litre|liter)\b|pcs?\b|plate\b|bowl\b|pack|dozen|bunch|packet|cup|glass|thali|portion|saree|set|chair|table|stool|pizza)/.test(u)) {
+        return String(raw).trim();
+      }
+      const cat = category.toLowerCase();
+      if (/beverage|juice|milk|oil|ghee/.test(cat)) return '500 ml';
+      if (/chaat|snack|biryani|pizza|salad|dessert|cooked|momo/.test(cat)) return '1 plate';
+      return '500 g';
     };
 
     const mergeCatalog = () => {
@@ -275,7 +335,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
               imageFallbackGradient: 'from-amber-600 to-orange-500',
               image: (data.image && String(data.image).trim()) ? String(data.image).trim() : undefined,
               type: 'grocery' as const,
-              unit: data.unit || '1 kg',
+              unit: sanitizeUnit(data.unit, categoryLabel),
               restaurant: 'Food Mela Direct',
             };
           });
@@ -418,7 +478,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const trimmedName = newName.trim();
     if (!trimmedName) return false;
 
-    const trimmedAddr = newAddress?.trim() || user.address || 'Birmaharajpur, Subarnapur, Odisha - 767018';
+    const trimmedAddr = newAddress?.trim() || user.address || '[Default Address]';
 
     // 1. Update local state immediately
     const updated = {
@@ -466,18 +526,39 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const itemCount = cart.reduce((sum, item) => sum + item.quantity, 0);
   
-  // Peak Hour Surge calculation
-  const getPeakSurgeFee = () => {
-    const now = new Date();
-    const timeVal = now.getHours() + now.getMinutes() / 60;
-    if (timeVal >= 12.0 && timeVal <= 15.5) return 15; // Lunch Peak
-    if (timeVal >= 19.0 && timeVal <= 22.5) return 20; // Dinner Peak
-    if (now.getHours() >= 23 || now.getHours() < 4) return 25; // Late Night
-    return 0;
-  };
+  // Delivery charge comes from the backend, priced from the delivery
+  // coordinates. There is deliberately no local formula left: this used to be
+  // a flat ₹10 (free above ₹249, surge ₹15/20/25) while the app charged
+  // ₹12 + ₹2/km, so the same basket cost different amounts by channel.
+  //
+  // With no coordinates there is no price — checkout is gated on having one,
+  // rather than showing a guessed number the server would reject.
+  const deliveryFee = cartTotal > 0 && deliveryQuote ? deliveryQuote.deliveryFee : 0;
+  const deliveryKm = deliveryQuote?.km ?? null;
+  const deliveryOutOfZone = deliveryQuote?.outOfZone === true;
+  const canDeliverHere = Boolean(deliveryCoords && deliveryQuote && !deliveryOutOfZone);
 
-  const baseDelivery = cartTotal >= 249 ? 0 : 10;
-  const deliveryFee = cartTotal > 0 ? baseDelivery + getPeakSurgeFee() : 0;
+  // Re-price whenever the location or the basket changes. The 250 ms debounce
+  // keeps quantity steppers from firing a request per tap.
+  useEffect(() => {
+    if (!deliveryCoords || cartTotal <= 0) {
+      setDeliveryQuote(null);
+      return;
+    }
+    let cancelled = false;
+    setDeliveryQuoteLoading(true);
+    const timer = setTimeout(async () => {
+      const q = await fetchDeliveryQuote(deliveryCoords.lat, deliveryCoords.lng, cartTotal);
+      if (cancelled) return;
+      setDeliveryQuote(q);
+      setDeliveryQuoteLoading(false);
+    }, 250);
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+      setDeliveryQuoteLoading(false);
+    };
+  }, [deliveryCoords, cartTotal]);
   const platformFee = cartTotal > 0 ? 10 : 0;
   const smallOrderFee = (cartTotal > 0 && cartTotal < 100) ? 20 : 0;
   const taxes = 0;
@@ -619,7 +700,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     playNotificationSound('success');
   };
 
-  // Place order to backend & Firestore or redirect to PayU for online payment
+  // Place order to backend & Firestore or redirect to Cashfree for online payment
   const placeOrder = async (paymentMethod: string, customAddress?: string): Promise<boolean> => {
     if (cart.length === 0) return false;
 
@@ -628,31 +709,77 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       return false;
     }
 
-    // Cash on Delivery is capped at ₹100 max; online payment via PayU is enabled for all amounts.
+    // Cash on Delivery is capped at ₹100 max; online payment via Cashfree is enabled for all amounts.
     if (paymentMethod === 'COD' && grandTotal > 100) {
       playNotificationSound('remove');
       alert(`Cash on Delivery is limited to orders up to ₹100. Your order total is ₹${grandTotal}. Please select UPI or Card to pay securely online.`);
       return false;
     }
 
-    const deliveryAddress = customAddress || user.address || currentLocation || 'Birmaharajpur, Subarnapur, Odisha - 767018';
+    const deliveryAddress = customAddress || user.address || currentLocation || '[Default Address]';
 
-    // ─── 1. REAL PAYU ONLINE PAYMENT REDIRECT (UPI & CARD) ─────────────────────
+    // No location, no price: the server sizes the delivery charge from real
+    // coordinates, so without them there is nothing to charge and the payment
+    // gateway would reject the amount anyway. Stop with a clear message rather
+    // than send an order we cannot price.
+    if (!deliveryCoords || !deliveryQuote) {
+      playNotificationSound('remove');
+      alert('Please set your delivery location so we can calculate the delivery charge.');
+      return false;
+    }
+    if (deliveryOutOfZone) {
+      playNotificationSound('remove');
+      alert(
+        `Sorry — we only deliver within ${deliveryQuote.maxDeliveryKm} km of the kitchen. ` +
+        `This address is ${deliveryQuote.km.toFixed(1)} km away.`,
+      );
+      return false;
+    }
+
+    // ─── 1. CASHFREE ONLINE PAYMENT (UPI & CARD, primary) ─────────────────────
     if (paymentMethod === 'UPI' || paymentMethod === 'CARD') {
       const itemsSummary = cart.map((ci) => `${ci.quantity}x ${ci.item.name}`).join(', ');
-      
-      const payuRes = await apiClient.initiatePayU({
+      const orderPayload = {
         customerName: user.name || 'Food Mela Customer',
         phone: user.phone,
         email: user.email || '',
         address: deliveryAddress,
-        items: itemsSummary,
+        // Item lines with prices, plus every charge the customer saw — the same
+        // bill the COD path sends. Without them the paid order stores only its
+        // total and the admin panel cannot itemise a single rupee.
+        items: cart.map((ci) => ({
+          itemId: ci.item.id,
+          name: ci.item.name,
+          quantity: ci.quantity,
+          price: ci.item.price,
+          unit: ci.item.unit || '',
+          totalPrice: ci.item.price * ci.quantity,
+        })),
+        itemsSummary,
         totalAmount: grandTotal,
-      });
+        subtotal: cartTotal,
+        deliveryFee,
+        smallOrderFee,
+        platformFee,
+        taxes,
+        discount: discountAmount + goldSavings,
+        promoCode: appliedCoupon?.code || (isGold ? 'MELA_GOLD' : ''),
+        customerLat: deliveryCoords.lat,
+        customerLng: deliveryCoords.lng,
+        distanceKm: deliveryQuote.km,
+        quoteToken: deliveryQuote.quoteToken,
+      };
 
+      const cfRes = await apiClient.initiateCashfree(orderPayload);
+      if (cfRes.success && cfRes.paymentSessionId && cfRes.orderId) {
+        playNotificationSound('success');
+        launchCashfreeCheckout(cfRes.paymentSessionId, cfRes.orderId, cfRes.checkoutUrl);
+        return true;
+      }
+      // Fallback to legacy PayU if Cashfree initiation fails
+      const payuRes = await apiClient.initiatePayU(orderPayload);
       if (payuRes.success && payuRes.payuUrl && payuRes.fields) {
         playNotificationSound('success');
-        // Instantly submit POST form to PayU gateway server
         submitPayUForm(payuRes.payuUrl, payuRes.fields);
         return true;
       }
@@ -674,6 +801,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       totalAmount: grandTotal,
       subtotal: cartTotal,
       deliveryFee,
+      customerLat: deliveryCoords.lat,
+      customerLng: deliveryCoords.lng,
+      distanceKm: deliveryQuote.km,
+      quoteToken: deliveryQuote.quoteToken,
       discount: discountAmount + goldSavings,
       promoCode: appliedCoupon?.code || (isGold ? 'MELA_GOLD' : ''),
       taxes,
@@ -743,6 +874,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         currentLocation,
         setCurrentLocation,
         cities,
+        deliveryCoords,
+        setDeliveryCoords,
+        deliveryQuote,
+        deliveryQuoteLoading,
+        deliveryKm,
+        deliveryOutOfZone,
+        canDeliverHere,
         user,
         setUser,
         showLoginModal,

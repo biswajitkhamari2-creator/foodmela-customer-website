@@ -99,7 +99,7 @@ export default function ProfileView() {
             </p>
             <p className="text-xs text-slate-500 dark:text-slate-400 font-medium flex items-center justify-center md:justify-start gap-1">
               <MapPin className="w-3.5 h-3.5 text-orange-500 shrink-0" />
-              <span>{user.address || 'Birmaharajpur, Subarnapur, Odisha - 767018'}</span>
+              <span>{user.address || '[Default Address]'}</span>
             </p>
           </div>
         </div>
@@ -299,7 +299,7 @@ export default function ProfileView() {
                 <span>Primary Delivery Address</span>
               </div>
               <p className="text-sm font-semibold text-slate-900 dark:text-white">
-                {user.address || 'Birmaharajpur, Subarnapur, Odisha - 767018'}
+                {user.address || '[Default Address]'}
               </p>
               <p className="text-[11px] text-slate-400">
                 Default delivery location for instant orders across Birmaharajpur.
@@ -313,15 +313,15 @@ export default function ProfileView() {
                 Customer Support &amp; Help Desk
               </span>
               <p className="text-xs font-bold text-slate-900 dark:text-white">
-                Helpline: +91 8144503650 (7:00 AM – 10:30 PM)
+                Helpline: [Helpline Number]
               </p>
             </div>
             <a
-              href="tel:8144503650"
+              href="tel:[Helpline Number]"
               className="px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white font-bold text-xs rounded-xl shadow flex items-center justify-center gap-1.5"
             >
               <Phone className="w-3.5 h-3.5" />
-              <span>Call Helpline</span>
+              <span>Contact Support</span>
             </a>
           </div>
         </div>

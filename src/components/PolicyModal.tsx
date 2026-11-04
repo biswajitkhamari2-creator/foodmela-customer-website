@@ -107,7 +107,7 @@ export default function PolicyModal() {
                 Official Helpline & Support Desk
               </span>
               <p className="text-xs font-bold text-slate-900 dark:text-white">
-                RAMESWARPADA, Birmaharajpur, Tithipali, Sonepur, Odisha 767018
+                [Support Location]
               </p>
               <p className="text-[11px] text-slate-500">
                 Operating 9:00 AM – 10:00 PM, All 7 Days
@@ -115,18 +115,18 @@ export default function PolicyModal() {
             </div>
 
             <a
-              href="tel:8144503650"
+              href="tel:[Helpline Number]"
               className="px-4 py-2.5 bg-orange-500 hover:bg-orange-600 text-white font-black text-xs rounded-xl shadow-md flex items-center justify-center gap-1.5 transition-all active:scale-95 shrink-0"
             >
               <Phone className="w-3.5 h-3.5" />
-              <span>Call +91 8144503650</span>
+              <span>Contact Support</span>
             </a>
           </div>
         </div>
 
         {/* Modal Bottom Footer */}
         <div className="p-4 bg-slate-50 dark:bg-slate-850 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between text-[11px] text-slate-400 shrink-0">
-          <span>© 2026 FoodMela (Operated by Biswajit Khamari) · foodmela.online</span>
+          <span>© 2026 FoodMela</span>
           <button
             onClick={() => {
               playNotificationSound('remove');

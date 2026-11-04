@@ -143,7 +143,7 @@ export default function LoginModal() {
 
         const phone = cleanPhone;
         let fullName = res.user.name || res.user.fullName || '';
-        let address = res.user.address || 'Birmaharajpur, Subarnapur, Odisha - 767018';
+        let address = res.user.address || '[Default Address]';
 
         // Check Firestore user doc for exact app profile data
         try {

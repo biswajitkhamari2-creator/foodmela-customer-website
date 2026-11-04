@@ -6,7 +6,7 @@ import { collection, doc, setDoc, getDocs, getDoc, query, where, orderBy, server
 const BASE_URL = (
   import.meta.env.VITE_BACKEND_URL ||
   import.meta.env.VITE_API_BASE_URL ||
-  (typeof window !== 'undefined' && window.location.origin.includes('foodmela') ? window.location.origin : 'https://foodmela.online')
+  (typeof window !== 'undefined' && window.location.origin.includes('foodmela') ? 'https://foodmela-backend.vercel.app' : 'https://foodmela-backend.vercel.app')
 ).replace(/\/$/, '');
 
 // ══════════════════════════════════════════════════════════════════════════
@@ -754,6 +754,38 @@ function parseOrderItems(raw: any, totalVal: number) {
   return [];
 }
 
+// What the checkout sends a payment gateway to start a session. The money
+// fields after totalAmount are the customer's bill, display only: the server
+// charges totalAmount and stores the rest so the admin panel can itemise it.
+export type GatewayCheckoutPayload = {
+  customerName: string;
+  phone: string;
+  email?: string;
+  address: string;
+  items: string | Array<{
+    itemId?: string;
+    name: string;
+    quantity: number;
+    price: number;
+    unit?: string;
+    totalPrice: number;
+  }>;
+  itemsSummary?: string;
+  totalAmount: number;
+  orderId?: string;
+  subtotal?: number;
+  deliveryFee?: number;
+  smallOrderFee?: number;
+  platformFee?: number;
+  taxes?: number;
+  discount?: number;
+  promoCode?: string;
+  customerLat?: number;
+  customerLng?: number;
+  distanceKm?: number;
+  quoteToken?: string;
+};
+
 export const apiClient = {
   // 1. Fetch Catalog (Merges Firestore custom_products + price overrides + base catalog)
   getCatalog: async (): Promise<CatalogItem[]> => {
@@ -934,7 +966,7 @@ export const apiClient = {
               id: `addr_${idx + 1}`,
               label: a.title || 'Home',
               tag: (a.title && (a.title.includes('Work') ? 'Work' : 'Home')) || 'Home',
-              addressLine: a.address || 'Birmaharajpur, Subarnapur, Odisha - 767018',
+              addressLine: a.address || '[Default Address]',
               city: 'Birmaharajpur',
               isDefault: idx === 0,
             }))
@@ -943,7 +975,7 @@ export const apiClient = {
                 id: 'addr_1',
                 label: 'Home',
                 tag: 'Home',
-                addressLine: localStorage.getItem(`fm_user_addr_${clean}`) || 'Birmaharajpur, Subarnapur, Odisha - 767018',
+                addressLine: localStorage.getItem(`fm_user_addr_${clean}`) || '[Default Address]',
                 city: 'Birmaharajpur',
                 isDefault: true,
               },
@@ -952,7 +984,7 @@ export const apiClient = {
         const user: UserProfile = {
           name: res.name || rawUser.name || rawUser.fullName || localStorage.getItem(`fm_user_name_${clean}`) || `Customer (${clean.slice(-4)})`,
           phone: clean,
-          address: (savedAddrs[0] && savedAddrs[0].addressLine) || 'Birmaharajpur, Subarnapur, Odisha - 767018',
+          address: (savedAddrs[0] && savedAddrs[0].addressLine) || '[Default Address]',
           addresses: savedAddrs,
           savedAddresses: savedAddrs,
           isGoldMember: Boolean(rawUser.isGoldMember ?? true),
@@ -975,7 +1007,7 @@ export const apiClient = {
             id: 'addr_1',
             label: 'Home',
             tag: 'Home',
-            addressLine: 'Birmaharajpur, Subarnapur, Odisha - 767018',
+            addressLine: '[Default Address]',
             city: 'Birmaharajpur',
             isDefault: true,
           },
@@ -983,7 +1015,7 @@ export const apiClient = {
         const user: UserProfile = {
           name: 'Food Mela Reviewer',
           phone: clean,
-          address: 'Birmaharajpur, Subarnapur, Odisha - 767018',
+          address: '[Default Address]',
           addresses: defaultAddrs,
           savedAddresses: defaultAddrs,
           isGoldMember: true,
@@ -1015,7 +1047,7 @@ export const apiClient = {
               fullName: liveName,
               name: liveName,
               phone: clean,
-              address: liveAddr || 'Birmaharajpur, Subarnapur, Odisha - 767018',
+              address: liveAddr || '[Default Address]',
               email: d.email || '',
               addresses: Array.isArray(d.addresses) ? d.addresses : (liveAddr ? [{ id: 'addr_1', addressLine: liveAddr, label: 'Home', tag: 'Home' }] : []),
             },
@@ -1036,7 +1068,7 @@ export const apiClient = {
           fullName: localStorage.getItem(`fm_user_name_${clean}`) || 'Food Mela Customer',
           name: localStorage.getItem(`fm_user_name_${clean}`) || 'Food Mela Customer',
           phone: clean,
-          address: localStorage.getItem(`fm_user_addr_${clean}`) || 'Birmaharajpur, Subarnapur, Odisha - 767018',
+          address: localStorage.getItem(`fm_user_addr_${clean}`) || '[Default Address]',
         },
       };
     }
@@ -1357,16 +1389,8 @@ export const apiClient = {
     }
   },
 
-  // 10. PayU Gateway Initiation
-  initiatePayU: async (orderPayload: {
-    customerName: string;
-    phone: string;
-    email?: string;
-    address: string;
-    items: string;
-    totalAmount: number;
-    orderId?: string;
-  }): Promise<{ success: boolean; payuUrl?: string; fields?: Record<string, string>; error?: string }> => {
+  // 10. PayU Gateway Initiation (legacy fallback)
+  initiatePayU: async (orderPayload: GatewayCheckoutPayload): Promise<{ success: boolean; payuUrl?: string; fields?: Record<string, string>; error?: string }> => {
     try {
       const res = await req<{ success: boolean; payuUrl: string; fields: Record<string, string>; error?: string }>('/api/payu/initiate', {
         method: 'POST',
@@ -1378,6 +1402,68 @@ export const apiClient = {
       return { success: false, error: e?.message || 'Failed to initiate PayU payment' };
     }
   },
+
+  // 10b. Cashfree Gateway Initiation (primary)
+  initiateCashfree: async (orderPayload: GatewayCheckoutPayload): Promise<{ success: boolean; orderId?: string; paymentSessionId?: string; checkoutUrl?: string; error?: string }> => {
+    try {
+      const res = await req<{ success: boolean; orderId: string; paymentSessionId: string; checkoutUrl?: string; error?: string }>('/api/cashfree/create-order', {
+        method: 'POST',
+        body: JSON.stringify(orderPayload),
+      });
+      return res;
+    } catch (e: any) {
+      console.error('Cashfree initiation error:', e);
+      return { success: false, error: e?.message || 'Failed to initiate Cashfree payment' };
+    }
+  },
+
+  // 10c. Gateway confirmation when the customer comes back from checkout.
+  // The order is created only on payment confirmation (webhook, or this call) —
+  // if the webhook is ever missed, nothing else asks the gateway, so the money
+  // is gone and no order exists. The app already polls this endpoint after
+  // checkout (payu_payment_screen.dart); the website had no equivalent.
+  confirmCashfreePayment: async (orderId: string): Promise<void> => {
+    if (!orderId) return;
+    try {
+      await req<{ success: boolean; status?: string }>(`/api/cashfree/status/${encodeURIComponent(orderId)}`);
+    } catch (e) {
+      console.error('Cashfree confirmation error:', e);
+    }
+  },
+};
+
+/**
+ * Launches the Cashfree hosted checkout from the payment_session_id returned by
+ * /api/cashfree/create-order.
+ * The checkout is NOT a GET page: payments.cashfree.com/checkout answers 404.
+ * Cashfree's own SDK reaches it by form-POSTing the session id, so we build that
+ * form. The target comes from the backend's checkoutUrl, which knows the mode.
+ */
+export const launchCashfreeCheckout = (paymentSessionId: string, orderId: string, checkoutUrl?: string) => {
+  const action =
+    checkoutUrl ||
+    (import.meta as any)?.env?.VITE_CASHFREE_CHECKOUT_URL ||
+    'https://api.cashfree.com/pg/view/sessions/checkout';
+
+  const form = document.createElement('form');
+  form.method = 'POST';
+  form.action = action;
+  form.style.display = 'none';
+
+  const fields: Record<string, string> = {
+    payment_session_id: paymentSessionId,
+    order_id: orderId,
+  };
+  Object.entries(fields).forEach(([name, value]) => {
+    const input = document.createElement('input');
+    input.type = 'hidden';
+    input.name = name;
+    input.value = value;
+    form.appendChild(input);
+  });
+
+  document.body.appendChild(form);
+  form.submit();
 };
 
 /**
@@ -1400,4 +1486,122 @@ export const submitPayUForm = (payuUrl: string, fields: Record<string, string>) 
   document.body.appendChild(form);
   form.submit();
 };
+
+// ══════════════════════════════════════════════════════════════════════════
+// DELIVERY DISTANCE + FEE — server-priced
+// ══════════════════════════════════════════════════════════════════════════
+// The website used to charge a flat ₹10 while the app charged ₹12 + ₹2/km, so
+// the same basket cost different amounts depending on where it was ordered.
+// Both now ask the backend, which is the only thing that decides a fee.
+
+export interface DeliveryQuoteResult {
+  km: number;
+  kmSource: string;
+  durationMin: number | null;
+  deliveryFee: number;
+  surge: number;
+  surgeLabel: string;
+  freeApplied: boolean;
+  outOfZone: boolean;
+  maxDeliveryKm: number;
+  quoteToken: string;
+}
+
+export interface PlaceSuggestion {
+  placeId: string;
+  primary: string;
+  secondary: string;
+  lat: number;
+  lng: number;
+}
+
+/**
+ * Prices a delivery to this coordinate pair for a basket of `subtotal`.
+ * Returns null when the server cannot be reached — callers must show a
+ * "calculating" state rather than inventing a number.
+ */
+export async function fetchDeliveryQuote(
+  lat: number,
+  lng: number,
+  subtotal: number,
+): Promise<DeliveryQuoteResult | null> {
+  try {
+    const res = await fetch(`${BASE_URL}/api/delivery/quote`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ lat, lng, subtotal }),
+    });
+    if (!res.ok) return null;
+    const j = await res.json();
+    if (!j?.success) return null;
+    return {
+      km: Number(j.km) || 0,
+      kmSource: String(j.kmSource || 'quote'),
+      durationMin: j.durationMin ?? null,
+      deliveryFee: Number(j.deliveryFee) || 0,
+      surge: Number(j.surge) || 0,
+      surgeLabel: String(j.surgeLabel || ''),
+      freeApplied: j.freeApplied === true,
+      outOfZone: j.outOfZone === true,
+      maxDeliveryKm: Number(j.maxDeliveryKm) || 0,
+      quoteToken: String(j.quoteToken || ''),
+    };
+  } catch {
+    return null;
+  }
+}
+
+/** Place search, proxied through the backend so no Maps key is exposed. */
+export async function searchPlaces(query: string): Promise<PlaceSuggestion[]> {
+
+  const q = query.trim();
+  if (q.length < 3) return [];
+  try {
+    const res = await fetch(`${BASE_URL}/api/geo/search?q=${encodeURIComponent(q)}`);
+    if (!res.ok) return [];
+    const j = await res.json();
+    const list = Array.isArray(j?.results) ? j.results : [];
+    return list
+      .map((r: Record<string, unknown>) => ({
+        placeId: String(r.placeId || ''),
+        primary: String(r.primary || ''),
+        secondary: String(r.secondary || ''),
+        lat: Number(r.lat),
+        lng: Number(r.lng),
+      }))
+      .filter((p: PlaceSuggestion) => p.primary && Number.isFinite(p.lat) && Number.isFinite(p.lng))
+      .slice(0, 8);
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * Registers "tell me when you deliver here" from the Not-Serviceable screen.
+ * Each request records a real coordinate someone wanted delivery to, which is
+ * the honest basis for deciding where to extend the radius next.
+ */
+export async function notifyServiceability(
+  phone: string,
+  lat: number,
+  lng: number,
+  address = '',
+  distanceKm?: number,
+): Promise<boolean> {
+  const clean = String(phone || '').replace(/[^0-9]/g, '');
+  const last10 = clean.length > 10 ? clean.slice(-10) : clean;
+  if (last10.length !== 10) return false;
+  try {
+    const res = await fetch(`${BASE_URL}/api/serviceability/notify`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ phone: last10, lat, lng, address, distanceKm }),
+    });
+    if (!res.ok) return false;
+    const j = await res.json();
+    return j?.success === true;
+  } catch {
+    return false;
+  }
+}
 
