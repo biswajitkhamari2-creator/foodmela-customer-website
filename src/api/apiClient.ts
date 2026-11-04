@@ -896,23 +896,7 @@ export const apiClient = {
     return res;
   },
 
-  // 4. Direct Phone Login & Session Minting
-  phoneLogin: async (phone: string, name?: string, address?: string) => {
-    const res = await req<{ success: boolean; phone: string; name: string | null; user: any; apiToken?: string }>(
-      '/api/auth/phone-login',
-      {
-        method: 'POST',
-        body: JSON.stringify({ phone, name, address }),
-      }
-    );
-    if (res && res.apiToken) {
-      try {
-        localStorage.setItem('fm_api_token', res.apiToken);
-        sessionStorage.setItem('fm_api_token', res.apiToken);
-      } catch { /* ignore */ }
-    }
-    return res;
-  },
+  // 4. (Removed) phoneLogin — minted a session from a bare phone number.
 
   // 5. Send Real SMS OTP via HanuOTP
   sendOTP: async (phone: string): Promise<{ success: boolean; message: string; error?: string }> => {
@@ -948,7 +932,7 @@ export const apiClient = {
         error?: string;
       }>('/api/auth/otp/verify', {
         method: 'POST',
-        body: JSON.stringify({ phone: clean, otp: otp.trim() }),
+        body: JSON.stringify({ phone: clean, otp: otp.trim(), clientUsesVerifyTokens: true }),
       });
 
       if (res && res.success) {
@@ -1096,13 +1080,8 @@ export const apiClient = {
 
     // 1. Try Backend API with token
     try {
-      let token = localStorage.getItem('fm_api_token') || sessionStorage.getItem('fm_api_token');
-      if (!token) {
-        try {
-          const authRes = await apiClient.phoneLogin(cleanPhone);
-          if (authRes.apiToken) token = authRes.apiToken;
-        } catch { /* ignore */ }
-      }
+      // No token means no session: the old fallback re-minted one by posting
+      // the bare phone to /api/auth/phone-login (a login bypass, now retired).
 
       const res = await req<{ success: boolean; orders: any[] }>(`/api/user/${encodeURIComponent(cleanPhone)}/orders`, undefined, true);
       if (res.success && Array.isArray(res.orders)) {
