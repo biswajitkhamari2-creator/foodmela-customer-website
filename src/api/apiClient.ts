@@ -2,11 +2,12 @@ import { CatalogItem, Coupon, Order, UserProfile, Rider } from '../types';
 import { db } from '../firebase';
 import { collection, doc, setDoc, getDocs, getDoc, query, where, orderBy, serverTimestamp, onSnapshot } from 'firebase/firestore';
 
-// Centralised configuration for Food Mela Backend API
+// Centralised configuration for Food Mela Backend API.
+// Self-hosted on the VPS; Vercel is no longer part of the request path.
 const BASE_URL = (
   import.meta.env.VITE_BACKEND_URL ||
   import.meta.env.VITE_API_BASE_URL ||
-  (typeof window !== 'undefined' && window.location.origin.includes('foodmela') ? 'https://foodmela-backend.vercel.app' : 'https://foodmela-backend.vercel.app')
+  'http://157.20.182.95:8082'
 ).replace(/\/$/, '');
 
 // ══════════════════════════════════════════════════════════════════════════

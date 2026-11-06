@@ -1,14 +1,14 @@
 {
   "redirects": [
-    { "source": "/admin", "destination": "https://foodmela-pixel-dash.vercel.app/login", "permanent": false },
-    { "source": "/admin/(.*)", "destination": "https://foodmela-pixel-dash.vercel.app/$1", "permanent": false }
+    { "source": "/admin", "destination": "http://157.20.182.95:8084/login", "permanent": false },
+    { "source": "/admin/(.*)", "destination": "http://157.20.182.95:8084/$1", "permanent": false }
   ],
   "rewrites": [
     { "source": "/(.*)", "destination": "/index.html" }
   ],
   "build": {
     "env": {
-      "VITE_BACKEND_URL": "https://foodmela.online"
+      "VITE_BACKEND_URL": "http://157.20.182.95:8082"
     }
   },
   "installCommand": "npm install",

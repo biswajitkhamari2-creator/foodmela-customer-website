@@ -43,7 +43,7 @@ function AppContent() {
       if (policy) setSelectedPolicy(policy);
 
       if (path === '/admin' || path.startsWith('/admin/')) {
-        window.location.href = 'https://food-mela-admin.vercel.app';
+        window.location.href = 'http://157.20.182.95:8084';
         return;
       }
 
